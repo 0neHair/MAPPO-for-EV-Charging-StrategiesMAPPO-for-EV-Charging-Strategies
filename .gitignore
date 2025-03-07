@@ -1,0 +1,20 @@
+MAPPO/2DAction/__pycache__
+MAPPO/2DAction/logs/*
+MAPPO/Graph_H/__pycache__
+MAPPO/Graph_H/logs/*
+MAPPO/Origin/__pycache__
+MAPPO/Origin/logs/*
+MAPPO/PS/__pycache__
+MAPPO/PS/logs/*
+<<<<<<< HEAD
+MAPPO/Graph_H2/__pycache__
+MAPPO/Graph_H2/logs/*
+MAPPO/No_Graph/__pycache__
+MAPPO/No_Graph/logs/*
+MAPPO/Only_C/__pycache__
+MAPPO/Only_C/logs/*
+MAPPO/Only_R/__pycache__
+MAPPO/Only_R/logs/*
+=======
+>>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
+GA/__pycache__

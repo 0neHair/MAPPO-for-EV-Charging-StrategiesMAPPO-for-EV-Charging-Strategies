@@ -1,0 +1,14 @@
+{
+    "notebook.output.textLineLimit": 50, //no limit in ipynb result
+
+    "python.pythonPath": "d:\\python\\python39.exe",
+
+    "powermode.enabled": true, //powermode on
+    "powermode.combo.location": "statusbar", //"off
+    "powermode.presets": "fireworks", // "particles" "fireworks", "flames", "magic", "clippy", "simple-rift", "exploding-rift"
+    "powermode.shake.enabled": false,
+    "powermode.shake.intensity": 0,
+    "powermode.explosions.enabled": true,
+    "python.analysis.typeCheckingMode": "basic"
+
+}
