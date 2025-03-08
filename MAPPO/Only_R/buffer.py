@@ -9,7 +9,6 @@ import numpy as np
 
 class RolloutBuffer(object):
     def __init__(
-<<<<<<< HEAD
         self, 
         steps: int, num_env: int, 
         state_shape: tuple, share_shape: tuple, caction_shape: tuple, 
@@ -17,15 +16,6 @@ class RolloutBuffer(object):
         obs_features_shape: tuple, global_features_shape: tuple, raction_shape: tuple,
         raction_mask_shape: tuple,
         device
-=======
-            self, 
-            steps: int, num_env: int, 
-            state_shape: tuple, share_shape: tuple, caction_shape: tuple, 
-            edge_index, 
-            obs_features_shape: tuple, global_features_shape: tuple, raction_shape: tuple,
-            raction_mask_shape: tuple,
-            device
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
         ):
         self.steps = steps
         self.device = device
@@ -35,7 +25,6 @@ class RolloutBuffer(object):
         self.state = np.zeros((steps, num_env) + state_shape, dtype=np.float32)
         self.share_state = np.zeros((steps, num_env) + share_shape, dtype=np.float32)
         self.caction = np.zeros((steps, num_env) + caction_shape, dtype=np.float32)
-<<<<<<< HEAD
         self.clog_prob = np.zeros((steps, num_env) + caction_shape, dtype=np.float32)
         self.next_state = np.zeros((steps, num_env) + state_shape, dtype=np.float32)
         self.next_share_state = np.zeros((steps, num_env) + share_shape, dtype=np.float32)
@@ -96,45 +85,10 @@ class RolloutBuffer(object):
         self.raction_mask[rptr][env_id] = action_mask
         self.rlog_prob[rptr][env_id] = log_prob
     
-=======
-        self.raction = np.zeros((steps, num_env) + raction_shape, dtype=np.float32)
-        self.raction_mask = np.zeros((steps, num_env) + raction_mask_shape, dtype=np.float32)
-        self.log_prob = np.zeros((steps, num_env) + caction_shape, dtype=np.float32)
-        self.next_state = np.zeros((steps, num_env) + state_shape, dtype=np.float32)
-        self.next_share_state = np.zeros((steps, num_env) + share_shape, dtype=np.float32)
-        self.reward = np.zeros((steps, num_env), dtype=np.float32)
-        self.done = np.zeros((steps, num_env), dtype=np.float32)
-        
-        self.ptr = [0 for _ in range(num_env)]
-
-    def push(self, reward, next_state, next_share_state, done, env_id):
-        ptr = self.ptr[env_id]
-        self.reward[ptr][env_id] = reward
-        self.next_state[ptr][env_id] = next_state
-        self.next_share_state[ptr][env_id] = next_share_state
-        self.done[ptr][env_id] = done
-
-        self.ptr[env_id] = (ptr + 1) % self.steps
-
-    def push_last_state(
-            self, state, share_state, 
-            caction, raction, action_mask, 
-            log_prob, env_id
-        ):
-        ptr = self.ptr[env_id]
-        self.state[ptr][env_id] = state
-        self.share_state[ptr][env_id] = share_state 
-        self.caction[ptr][env_id] = caction
-        self.raction[ptr][env_id] = raction
-        self.raction_mask[ptr][env_id] = action_mask
-        self.log_prob[ptr][env_id] = log_prob
-
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
     def pull(self):
         return (
             torch.tensor(self.state, dtype=torch.float32).to(self.device),
             torch.tensor(self.share_state, dtype=torch.float32).to(self.device),
-<<<<<<< HEAD
             torch.tensor(self.caction, dtype=torch.float32).to(self.device),
             torch.tensor(self.clog_prob, dtype=torch.float32).to(self.device),
             torch.tensor(self.creward, dtype=torch.float32).to(self.device),
@@ -155,19 +109,6 @@ class RolloutBuffer(object):
             torch.tensor(self.next_rstate, dtype=torch.float32).to(self.device),
             torch.tensor(self.next_share_rstate, dtype=torch.float32).to(self.device),
             torch.tensor(self.rdone, dtype=torch.float32).to(self.device)
-=======
-
-            torch.tensor(self.caction, dtype=torch.float32).to(self.device),
-            torch.tensor(self.raction, dtype=torch.float32).to(self.device),
-            torch.tensor(self.raction_mask, dtype=torch.float32).to(self.device),
-            torch.tensor(self.log_prob, dtype=torch.float32).to(self.device),
-
-            torch.tensor(self.next_state, dtype=torch.float32).to(self.device),
-            torch.tensor(self.next_share_state, dtype=torch.float32).to(self.device),
-
-            torch.tensor(self.reward, dtype=torch.float32).to(self.device),
-            torch.tensor(self.done, dtype=torch.float32).to(self.device)
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
         )
     # @property
     # def full(self):

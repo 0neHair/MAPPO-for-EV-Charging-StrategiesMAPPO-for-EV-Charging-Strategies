@@ -78,11 +78,7 @@ def run(cact_pi_seq, ract_pi_seq, env, agent_num, args):
         total_reward += agents_total_reward[i]
 
     if args.train == False:
-<<<<<<< HEAD
-        dir = 'output/{}_{}'.format(args.sce_name, args.filename)
-=======
         dir = 'output/{}_{}_GA'.format(args.sce_name, args.filename)
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
         if not os.path.exists(dir):
             os.mkdir(dir)
         # Map

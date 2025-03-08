@@ -107,11 +107,7 @@ def Evaluate(env, agents, args, mode, agent_num):
             df_cs.loc[i, cs+'_waiting_time'] = env.cs_waiting_time_memory[i][j]
     df_cs.to_csv(dir+'/CS.csv', index=False)
     # EV
-<<<<<<< HEAD
     df_ev_g = pd.DataFrame(columns=['EV', 'Waiting_time', 'Charging_time', 'Total', 'Reward'])
-=======
-    df_ev_g = pd.DataFrame(columns=['EV', 'Waiting_time', 'Charging_time', 'Total'])
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
     ccolumns = ['time', 'distance', 'position', 'state', 'cact_mode', 'SOC', 'action']
     rcolumns = ['num', 'edge']
     if not os.path.exists(dir + '/EV'):

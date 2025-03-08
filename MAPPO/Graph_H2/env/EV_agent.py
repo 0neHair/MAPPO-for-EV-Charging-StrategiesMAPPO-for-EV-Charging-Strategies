@@ -89,19 +89,7 @@ class EV_Agent():
         self.consume = consume # kWh/km 每公里消耗电量 0.15  
         self.speed = speed # km/h 均匀车速 100
         self.E_max = E_max # kWh 总电量 60
-<<<<<<< HEAD
     
-=======
-        
-        # # 计算理想值
-        # self.total_distance = 0
-        # for l in self.route:
-        #     self.total_distance += l
-        # self.ideal_charging_SOC = self.total_distance * self.consume / self.E_max + self.SOC_exp - self.SOC_init # 理想充电量
-        # self.ideal_charging_time = self.ideal_charging_SOC / 0.4 # 理想充电时间
-        # self.ideal_times = int(self.ideal_charging_SOC) + 1 # 理想充电次数
-        
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
         # 数据存档
         self.time_memory = []
         self.reward_memory = []

@@ -32,19 +32,10 @@ def Evaluate(env, agents, args, mode, agent_num):
                     if args.ps:
                         pass
                     else:
-<<<<<<< HEAD
                         caction, log_prob = agents[agent_i].select_best_action(
                                 obs_n[agent_i]
                             )
                     caction_n[agent_i] = caction[0].copy()
-=======
-                        caction, raction, log_prob = agents[agent_i].select_best_action(
-                                obs_n[agent_i],
-                                obs_mask_n[agent_i]
-                            )
-                    caction_n[agent_i] = caction[0].copy()
-                    raction_n[agent_i] = raction[0].copy()
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
 
         obs_n, obs_mask_n, share_obs, done_n, \
             reward_n, cact_n, ract_n, \

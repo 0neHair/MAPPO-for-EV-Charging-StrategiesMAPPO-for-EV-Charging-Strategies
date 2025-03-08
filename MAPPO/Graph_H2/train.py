@@ -150,7 +150,6 @@ def Train(envs, agents, writer, args, mode, agent_num):
                                 global_cs_feature_ = global_cs_feature[e].copy()
                                 share_obs_ = share_obs[e].copy()
                             agents[agent_i].rolloutBuffer.rpush(
-<<<<<<< HEAD
                                     reward=rreward_n[e][agent_i],
                                     next_obs_feature=obs_feature_n[e][agent_i], 
                                     next_global_cs_feature=global_cs_feature_,
@@ -158,15 +157,6 @@ def Train(envs, agents, writer, args, mode, agent_num):
                                     next_share_rstate=share_obs_, 
                                     done=done_n[e][agent_i],
                                     env_id=e
-=======
-                                reward=rreward_n[e][agent_i],
-                                next_obs_feature=obs_feature_n[e][agent_i], 
-                                next_global_cs_feature=global_cs_feature_,
-                                next_rstate=obs_n[e][agent_i], 
-                                next_share_rstate=share_obs_, 
-                                done=done_n[e][agent_i],
-                                env_id=e
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
                                 )
                             buffer_times[e][agent_i] += 1
             #* 若没有可启动的智能体，说明环境运行结束，重启

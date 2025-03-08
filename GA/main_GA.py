@@ -14,24 +14,14 @@ from run_env import run
 
 def parse_args():
     parser = argparse.ArgumentParser()
-<<<<<<< HEAD
     parser.add_argument("--sce_name", type=str, default="SY_2")
     parser.add_argument("--filename", type=str, default="T1")
-    parser.add_argument("--train", type=bool, default=True)
-=======
-    parser.add_argument("--sce_name", type=str, default="SY_4")
-    parser.add_argument("--filename", type=str, default="T3")
     parser.add_argument("--train", type=bool, default=False)
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
     parser.add_argument("--randomize", type=bool, default=False)
     parser.add_argument("--seed", type=int, default=0)
     
     parser.add_argument("--size_pop", type=int, default=20)
-<<<<<<< HEAD
     parser.add_argument("--max_iter", type=int, default=5000)
-=======
-    parser.add_argument("--max_iter", type=int, default=3000)
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
     parser.add_argument("--prob_mut", type=float, default=0.05)
     
     arguments = parser.parse_args()
@@ -115,10 +105,7 @@ if args.train:
     ax[1].plot(y_history.index, y_history.min(axis=1).cummin(), color='blue')
     # ax[1].set_ylim(0, 50)
     plt.savefig('logs/{}_{}.png'.format(args.sce_name, args.filename), dpi=300)
-<<<<<<< HEAD
     y_history.to_csv('logs/{}_{}.csv'.format(args.sce_name, args.filename), index=False)
-=======
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
 else:
     act_pd = pd.read_csv('action/{}_{}.csv'.format(args.sce_name, args.filename))
     act = np.array(act_pd['action'])

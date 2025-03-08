@@ -18,11 +18,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sce_name", type=str, default="SY_4")
     parser.add_argument("--filename", type=str, default="T1")
-<<<<<<< HEAD
     parser.add_argument("--train", type=bool, default=False)
-=======
-    parser.add_argument("--train", type=bool, default=True)
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
 
     parser.add_argument("--ctde", type=bool, default=True)
     parser.add_argument("--expert", type=bool, default=False)
