@@ -15,37 +15,52 @@ def Evaluate(env, agents, args, mode, agent_num):
         
     agents_total_reward = [0 for _ in range(agent_num)]
     env.reset()
-    obs_n, obs_mask_n, share_obs, done_n, \
-        reward_n, cact_n, ract_n, \
-            activate_agent_i, activate_to_act \
-                    = env.step(default_action)
-    for i, agent_i in enumerate(activate_agent_i):
-        agents_total_reward[agent_i] += reward_n[agent_i][0].copy()
+    obs_n, obs_mask_n, \
+        share_obs, \
+            done_n, creward_n, rreward_n, cact_n, ract_n, \
+                activate_agent_ci, activate_to_cact, \
+                    activate_agent_ri, activate_to_ract \
+                        = env.step(default_action)
+    for i, agent_i in enumerate(activate_agent_ri):
+        agents_total_reward[agent_i] += rreward_n[agent_i][0].copy()
     while 1:
         caction_n = np.array([-1 for _ in range(agent_num)])
         raction_n = np.array([-1 for _ in range(agent_num)])
-
-        for i, agent_i in enumerate(activate_agent_i):
-            if activate_to_act[i]:
+        
+        # 决策充电
+        for i, agent_i in enumerate(activate_agent_ci):
+            if activate_to_cact[i]:
                 with torch.no_grad():
                     # Choose an action
                     if args.ps:
                         pass
                     else:
-                        caction, log_prob = agents[agent_i].select_best_action(
-                                obs_n[agent_i]
-                            )
+                        caction, clog_prob = agents[agent_i].select_best_caction(obs_n[agent_i])
                     caction_n[agent_i] = caction[0].copy()
-
-        obs_n, obs_mask_n, share_obs, done_n, \
-            reward_n, cact_n, ract_n, \
-                activate_agent_i, activate_to_act \
-                    = env.step((caction_n, raction_n)) # (caction_n, raction_n)
+        # # 决策路径
+        # for i, agent_i in enumerate(activate_agent_ri):
+        #     if activate_to_ract[i]:
+        #         with torch.no_grad():
+        #             # Choose an action
+        #             if args.ps:
+        #                 pass
+        #             else:
+        #                 raction, rlog_prob = agents[agent_i].select_best_raction(
+        #                     obs_n[agent_i], obs_mask_n[agent_i]
+        #                 )
+        #             raction_n[agent_i] = raction[0].copy()
+        
+        obs_n, obs_mask_n, \
+            share_obs, \
+                done_n, creward_n, rreward_n, cact_n, ract_n, \
+                    activate_agent_ci, activate_to_cact, \
+                        activate_agent_ri, activate_to_ract \
+                            = env.step((caction_n, raction_n)) # (caction_n, raction_n)
         
         #* 将被激活的智能体当前状态作为上一次动作的结果保存
-        for i, agent_i in enumerate(activate_agent_i):
-            agents_total_reward[agent_i] += reward_n[agent_i][0].copy()
-
+        for i, agent_i in enumerate(activate_agent_ri):
+            # print("RR:", rreward_n)
+            agents_total_reward[agent_i] += rreward_n[agent_i][0].copy()
         if env.agents_active == []: 
             break
         
@@ -53,7 +68,6 @@ def Evaluate(env, agents, args, mode, agent_num):
     for i in range(agent_num):
         total_reward += agents_total_reward[i]
         
-    
     dir = 'output/{}_{}_{}'.format(args.sce_name, args.filename, mode)
     if not os.path.exists(dir):
         os.mkdir(dir)
@@ -102,23 +116,13 @@ def Evaluate(env, agents, args, mode, agent_num):
         df_ev_c = pd.DataFrame(columns=ccolumns)
         time_seq = ev.time_memory
         for i in range(len(time_seq)):
-            if ev.action_choose_memory[i] != -1:
-                assert 'P' in ev.pos_memory[i], "BUG exists"
-                df_ev_c.loc[i, 'time'] = round(time_seq[i], 2)
-                df_ev_c.loc[i, 'distance'] = ev.trip_memory[i]
-                df_ev_c.loc[i, 'position'] = 'P' + str(int(ev.pos_memory[i][1:])-1)
-                df_ev_c.loc[i, 'state'] = ev.state_memory[i]
-                df_ev_c.loc[i, 'cact_mode'] = int(ev.activity_memory[i])
-                df_ev_c.loc[i, 'SOC'] = env.caction_list[ev.action_choose_memory[i]]
-                df_ev_c.loc[i, 'action'] = ev.action_choose_memory[i]
-            else:
-                df_ev_c.loc[i, 'time'] = round(time_seq[i], 2)
-                df_ev_c.loc[i, 'distance'] = ev.trip_memory[i]
-                df_ev_c.loc[i, 'position'] = ev.pos_memory[i]
-                df_ev_c.loc[i, 'state'] = ev.state_memory[i]
-                df_ev_c.loc[i, 'cact_mode'] = int(ev.activity_memory[i])
-                df_ev_c.loc[i, 'SOC'] = ev.SOC_memory[i]
-                df_ev_c.loc[i, 'action'] = ev.action_choose_memory[i]
+            df_ev_c.loc[i, 'time'] = round(time_seq[i], 2)
+            df_ev_c.loc[i, 'distance'] = ev.trip_memory[i]
+            df_ev_c.loc[i, 'position'] = ev.pos_memory[i]
+            df_ev_c.loc[i, 'state'] = ev.state_memory[i]
+            df_ev_c.loc[i, 'act_mode'] = int(ev.activity_memory[i])
+            df_ev_c.loc[i, 'SOC'] = ev.SOC_memory[i]
+            df_ev_c.loc[i, 'action'] = ev.action_choose_memory[i]
         df_ev_c.to_csv(dir + '/EV/EV{}.csv'.format(ev.id), index=False)
         df_ev_r = pd.DataFrame(columns=rcolumns)
         edge_i = 0
@@ -134,13 +138,13 @@ def Evaluate(env, agents, args, mode, agent_num):
         df_ev_g.loc[j, 'Total'] = ev.total_used_time
         df_ev_g.loc[j, 'Reward'] = ev.total_reward
     df_ev_g.to_csv(dir+'/EV_g.csv', index=False)
-
+    
     print(
             'Total reward: {:.3f} \t Average reward: {:.3f}'.format(
                     total_reward, total_reward/agent_num
                 )
         )
-    # print(total_reward)
+    print(total_reward)
     # env.render()
     env.close()
 

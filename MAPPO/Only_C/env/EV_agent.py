@@ -117,7 +117,6 @@ class EV_Agent():
         self.total_used_time = 0 # 累计被使用时间
         self.charging_ts = 0 # 累计充电次数
         self.SOC_charged = 0 # 累计充电量
-        
         self.route = {}
     
     def reset(self):
@@ -169,7 +168,6 @@ class EV_Agent():
         self.total_used_time = 0 # 累计被使用时间
         self.charging_ts = 0 # 累计充电次数
         self.SOC_charged = 0 # 累计充电量
-        
         self.route = {}
         
     def activate(self):
@@ -211,7 +209,7 @@ class EV_Agent():
                     self.is_charging = False # 状态变更
                     # self.current_pos += 1 # 更新坐标
                     self.ev_state = 0
-                    # self.if_choose_route() # 看要不要进行路段选择
+                    self.if_choose_route() # 看要不要进行路段选择
             else: 
                 # 否则行驶
                 self.current_position = self.current_road
@@ -235,10 +233,6 @@ class EV_Agent():
         self.activity_memory.append(len(self.caction_memory) * self.is_charging)
         self.state_memory.append(self.ev_state)
         self.SOC_memory.append(self.SOC)
-        # if self.is_charging == True:
-        #     self.action_choose_memory.append(self.caction_memory[-1])
-        # else:
-        #     self.action_choose_memory.append(-1)
         
     def set_caction(self, caction=0, waiting_time=0.0, charging_time=0.0):
         '''
@@ -254,9 +248,6 @@ class EV_Agent():
         self.action_type.append('c')
         self.is_choosing = False # 不处于激活状态
         reward = 0
-        
-        if self.target_pos == 0:
-            caction = 0
         
         if caction == 0: # 选择不充电
             pass
@@ -281,7 +272,7 @@ class EV_Agent():
             reward -= (waiting_time*self.waiting_time_beta + charging_time*self.charging_time_beta + self.fixed_charging_wasting_time)
             
         self.c_reward = reward
-        self.r_reward = reward
+        self.r_reward += reward
         self.total_reward += reward
 
     def set_raction(self, raction=0, reset_record=False):
@@ -313,8 +304,8 @@ class EV_Agent():
         self.time_to_next = dis_to_next / self.speed # 路段行驶时间
         self.total_used_time += self.time_to_next
         reward -= self.time_to_next*self.travel_time_beta
-        self.current_cs = 'P'+str(self.target_pos)
         self.target_pos = next_pos
+        self.current_cs = 'P'+str(self.target_pos)
         self.current_road = od # 记录所在位置
         self.total_route.append(od)
 
@@ -332,9 +323,9 @@ class EV_Agent():
                     reward -= self.unexpected_penalty
         # 更新奖励
         if reset_record: # 如果是决策点，重设奖励
-            self.r_reward += reward
-        else: # 否则累加
             self.r_reward = reward
+        else: # 否则累加
+            self.r_reward += reward
         self.total_reward += reward
     
     def get_choice_set(self):
@@ -348,7 +339,6 @@ class EV_Agent():
         choose_set = choose_set[choose_set > 0] - 1
         if choose_set.shape[0] > 1:
             self.is_routing = choose_set.shape[0] # 设置选路标记
-            self.is_choosing = True
         else:
             self.set_raction(raction=choose_set[0], reset_record=False)
     
@@ -366,6 +356,7 @@ class EV_Agent():
                 penalty -= self.unexpected_penalty
         return penalty
 
+        
     # def ideal_conditions(self):
     #     print('Ideal charging SOC: {}%   Ideal charging time: {}h   Ideal charging times: {}'.format(self.ideal_charging_SOC, self.ideal_charging_time, self.ideal_times))
         

@@ -14,7 +14,7 @@ from run_env import run
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sce_name", type=str, default="SY_2")
+    parser.add_argument("--sce_name", type=str, default="SY_4")
     parser.add_argument("--filename", type=str, default="T1")
     parser.add_argument("--train", type=bool, default=False)
     parser.add_argument("--randomize", type=bool, default=False)
