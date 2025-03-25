@@ -6,7 +6,6 @@ MAPPO/Origin/__pycache__
 MAPPO/Origin/logs/*
 MAPPO/PS/__pycache__
 MAPPO/PS/logs/*
-<<<<<<< HEAD
 MAPPO/Graph_H2/__pycache__
 MAPPO/Graph_H2/logs/*
 MAPPO/No_Graph/__pycache__
@@ -15,6 +14,9 @@ MAPPO/Only_C/__pycache__
 MAPPO/Only_C/logs/*
 MAPPO/Only_R/__pycache__
 MAPPO/Only_R/logs/*
-=======
->>>>>>> 8ce6d8f0c6ed187a6fd0eaae6b43825b53f771a7
 GA/__pycache__
+DS
+DE
+Result/reward/*
+Result - 副本
+Result_old
