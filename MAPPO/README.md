@@ -5,27 +5,21 @@
 -->
 # Current Algorithm Version
 
-## Origin
-
-原版MAPPO，可以选择是否使用CTDE框架：
-
-* 若`ctde=True`则为MAPPO
-* 若`ctde=False`则为IAPPO
-
-## Parameters Sharing (PS)
-
-在原版的基础上增加了“参数共享”选项：
-
-* 若`ps=True`则使用参数共享，所有智能体的Actor和Critic的参数相同
-* 若`ps=False`则与Origin相同
-
-# Graph_H
+## GH
 
 充电-路径联合优化，在原版MAPPO的基础上进行分层，上层决策路径，下层决策充电
 
-# 2DAction
+## NGH
 
 充电-路径联合优化，在原版MAPPO的基础上采用二维动作
+
+## OC
+
+??
+
+## OR
+
+??
 
 # Current Env Version
 
