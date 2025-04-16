@@ -10,7 +10,6 @@ import os
 
 from env.Sce_Env import Sce_Env
 from env_wrappers import SubprocVecEnv, DummyVecEnv
-from trainer.train import Train
 from trainer.evaluate import Evaluate
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -21,13 +20,14 @@ def parse_args():
     parser.add_argument("--filename", type=str, default="T1")
     parser.add_argument("--mode", type=str, default="NGH", help='Choose one from [GH, NGH, OC, OR]')
     parser.add_argument("--train", type=bool, default=True)
+    parser.add_argument("--continuous", type=bool, default=False)
 
     parser.add_argument("--ctde", type=bool, default=True)
     parser.add_argument("--expert", type=bool, default=False)
     parser.add_argument("--randomize", type=bool, default=False)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--num_env", type=int, default=1) # 环境数
-    parser.add_argument("--num_update", type=int, default=10) # 最大更新轮次
+    parser.add_argument("--num_update", type=int, default=100) # 最大更新轮次
     parser.add_argument("--save_freq", type=int, default=50) # 保存频率
 
     parser.add_argument("--ps", type=bool, default=False) # parameter sharing
@@ -51,7 +51,7 @@ def parse_args():
 def make_train_env(args, agent_num):
     def get_env_fn():
         def init_env():
-            env = Sce_Env(sce_name=args.sce_name, seed=args.seed, ps=args.ps, mode=args.mode)
+            env = Sce_Env(args)
             return env
         return init_env
     if args.num_env == 1:
@@ -68,7 +68,7 @@ def main():
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-    env = Sce_Env(sce_name=args.sce_name, seed=args.seed, ps=args.ps, mode=args.mode)
+    env = Sce_Env(args)
     caction_list = env.caction_list # 可选充电动作列表
     raction_list = env.raction_list # 可选路径动作列表
     
@@ -122,13 +122,51 @@ def main():
     ############## Agents ##############
     agents = []
     if args.ps:
-        pass
+        from algo.ppo_ps.ppo_base import PPOAgentPS as Agent
+        from trainer.train_ps import Train
+        from buffer.buffer_ps import RolloutBufferPS as Buffer
+
+        buffer = Buffer(
+                steps=args.single_batch_size, rsteps=args.single_rbatch_size, num_env=args.num_env,
+                state_shape=state_shape, share_shape=share_shape, caction_shape=(1, ), # type: ignore
+                edge_index=edge_index,
+                obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
+                raction_shape=(1, ), # type: ignore
+                raction_mask_shape=raction_mask_shape,
+                agent_num=agent_num,
+                device=device
+            )
+        agents = Agent(
+                state_dim=state_dim, share_dim=share_dim, 
+                caction_dim=caction_dim, caction_list=caction_list,
+                obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
+                raction_dim=raction_dim, raction_list=raction_list,
+                edge_index=edge_index, buffer=buffer, device=device, args=args
+            )
+        if args.train:
+            path = "save/{}_{}_{}".format(args.sce_name, args.filename, mode)
+            if not os.path.exists(path):
+                os.makedirs(path)
+        else:
+            agents.load("save/{}_{}_{}/agents_{}".format(args.sce_name, args.filename, mode, mode))
+        print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.lr, args.gamma))
+        if args.train: # train
+            best_reward, best_step = Train(envs, agents, writer, args, mode, agent_num)
+            writer.close()
+            print("best_reward:{}   best_step:{}".format(best_reward, best_step))
+        else: # evaluate
+            Evaluate(envs, agents, args, mode, agent_num)
     else:
         if mode in ['GH']:
-            from ppo.ppo_g import GPPOAgent as Agent
+            from algo.ppo.ppo_g import GPPOAgent as Agent
             from buffer.buffer_g import G_RolloutBuffer as Buffer
         else:
-            from ppo.ppo_base import PPOAgent as Agent
+            # from algo.ddpg_ppo.ddpg_ppo import DDPG_PPOAgent as Agent
+            # from trainer.train_ddpg import Train
+            # from algo.sac.sac import SACAgent as Agent
+            # from trainer.train_sac import Train
+            from algo.ppo.ppo_base import PPOAgent as Agent
+            from trainer.train import Train
             from buffer.buffer_base import RolloutBuffer as Buffer
         
         for i in range(agent_num):
@@ -141,7 +179,7 @@ def main():
                     raction_mask_shape=raction_mask_shape,
                     device=device
                 )
-            ppo = Agent(
+            agent = Agent(
                     state_dim=state_dim, share_dim=share_dim, 
                     caction_dim=caction_dim, caction_list=caction_list,
                     obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
@@ -153,8 +191,8 @@ def main():
                 if not os.path.exists(path):
                     os.makedirs(path)
             else:
-                ppo.load("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
-            agents.append(ppo)
+                agent.load("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
+            agents.append(agent)
         
         print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.lr, args.gamma))
         if args.train: # train

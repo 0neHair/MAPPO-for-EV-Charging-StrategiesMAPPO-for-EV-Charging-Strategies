@@ -28,7 +28,8 @@ def Evaluate(env, agents, args, mode, agent_num):
                     caction_n[agent_i] = choose_cation(
                         args, 0, agents[agent_i], 
                         obs_n[agent_i], 
-                        share_obs
+                        share_obs, 
+                        best=True
                     )
         # 决策路径
         for i, agent_i in enumerate(activate_agent_ri):
@@ -37,7 +38,8 @@ def Evaluate(env, agents, args, mode, agent_num):
                     raction_n[agent_i] = choose_raction(
                         args, 0, agents[agent_i], 
                         obs_feature_n[agent_i], obs_n[agent_i], obs_mask_n[agent_i],
-                        global_cs_feature, share_obs
+                        global_cs_feature, share_obs, 
+                        best=True
                     )
 
         obs_n, obs_feature_n, obs_mask_n, \

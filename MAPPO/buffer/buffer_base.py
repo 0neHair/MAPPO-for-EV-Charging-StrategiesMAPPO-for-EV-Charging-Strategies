@@ -35,6 +35,7 @@ class RolloutBuffer(object):
         self.global_cs_feature = np.zeros((self.rsteps, num_env) + global_features_shape, dtype=np.float32)
         self.raction = np.zeros((self.rsteps, num_env) + raction_shape, dtype=np.float32)
         self.raction_mask = np.zeros((self.rsteps, num_env) + raction_mask_shape, dtype=np.float32)
+        self.next_raction_mask = np.zeros((self.rsteps, num_env) + raction_mask_shape, dtype=np.float32)
         self.rlog_prob = np.zeros((self.rsteps, num_env) + raction_shape, dtype=np.float32)
         self.next_rstate = np.zeros((self.rsteps, num_env) + state_shape, dtype=np.float32)
         self.next_share_rstate = np.zeros((self.rsteps, num_env) + share_shape, dtype=np.float32)
@@ -70,13 +71,14 @@ class RolloutBuffer(object):
         self.caction[cptr][env_id] = action
         self.clog_prob[cptr][env_id] = log_prob
 
-    def rpush(self, reward, next_obs_feature, next_global_cs_feature, next_rstate, next_share_rstate, done, env_id):
+    def rpush(self, reward, next_obs_feature, next_global_cs_feature, next_rstate, next_share_rstate, next_action_mask, done, env_id):
         rptr = self.rptr[env_id]
         self.rreward[rptr][env_id] = reward
         self.next_rstate[rptr][env_id] = next_rstate
         self.next_share_rstate[rptr][env_id] = next_share_rstate
         self.next_obs_feature[rptr][env_id] = next_obs_feature
         self.next_global_cs_feature[rptr][env_id] = next_global_cs_feature
+        self.raction_mask[rptr][env_id] = next_action_mask
         self.rdone[rptr][env_id] = done
 
         self.rptr[env_id] = (rptr + 1) % self.rsteps
@@ -112,6 +114,7 @@ class RolloutBuffer(object):
 
             torch.tensor(self.next_rstate, dtype=torch.float32).to(self.device),
             torch.tensor(self.next_share_rstate, dtype=torch.float32).to(self.device),
+            torch.tensor(self.next_raction_mask, dtype=torch.float32).to(self.device),
             
             torch.tensor(self.rdone, dtype=torch.float32).to(self.device)
         )
@@ -119,56 +122,3 @@ class RolloutBuffer(object):
     # @property
     # def full(self):
     #     return self.ptr == 0
-
-# class SharedRolloutBuffer(object):
-#     def __init__(
-#         self, 
-#         steps: int, num_env: int, 
-#         state_shape: tuple, share_shape: tuple, action_shape: tuple, 
-#         agent_num: int,
-#         device
-#         ):
-#         self.steps = steps
-#         self.agent_num = agent_num
-#         self.device = device
-
-#         self.state = np.zeros((steps, num_env, agent_num) + state_shape, dtype=np.float32)
-#         self.share_state = np.zeros((steps, num_env, agent_num) + share_shape, dtype=np.float32)
-#         self.action = np.zeros((steps, num_env, agent_num) + action_shape, dtype=np.float32)
-#         self.log_prob = np.zeros((steps, num_env, agent_num) + action_shape, dtype=np.float32)
-#         self.next_state = np.zeros((steps, num_env, agent_num) + state_shape, dtype=np.float32)
-#         self.next_share_state = np.zeros((steps, num_env, agent_num) + share_shape, dtype=np.float32)
-#         self.reward = np.zeros((steps, num_env, agent_num), dtype=np.float32)
-#         self.done = np.zeros((steps, num_env, agent_num), dtype=np.float32)
-
-#         self.ptr = 0
-
-#     def push(self, reward, next_state, next_share_state, done, env_id, agent_id):
-#         self.reward[self.ptr][env_id][agent_id] = reward
-#         self.next_state[self.ptr][env_id][agent_id] = next_state
-#         self.next_share_state[self.ptr][env_id][agent_id] = next_share_state
-#         self.done[self.ptr][env_id][agent_id] = done
-
-#         self.ptr = (self.ptr + 1) % self.steps
-
-#     def push_last_state(self, state, share_state, action, log_prob, env_id, agent_id):
-#         self.state[self.ptr][env_id][agent_id] = state
-#         self.share_state[self.ptr][env_id][agent_id] = share_state 
-#         self.action[self.ptr][env_id][agent_id] = action
-#         self.log_prob[self.ptr][env_id][agent_id] = log_prob
-    
-#     def pull(self):
-#         return (
-#             torch.tensor(self.state, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.share_state, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.action, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.log_prob, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.reward, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.next_state, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.next_share_state, dtype=torch.float32).to(self.device),
-#             torch.tensor(self.done, dtype=torch.float32).to(self.device)
-#         )
-
-#     @property
-#     def full(self):
-#         return self.ptr == 0

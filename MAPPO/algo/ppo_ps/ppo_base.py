@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils.data import BatchSampler, SubsetRandomSampler
 from .networks.FCN import cNetwork, rNetwork
 
-class PPOAgent(object):
+class PPOAgentPS(object):
     def __init__(
             self, 
             state_dim, share_dim, caction_dim, caction_list,
@@ -95,7 +95,7 @@ class PPOAgent(object):
     def train(self):
         state, share_state, caction, clog_prob, creward, next_state, next_share_state, cdone, \
             rstate, share_rstate, raction, raction_mask, rlog_prob, rreward, next_rstate, next_share_rstate,\
-                rdone = self.rolloutBuffer.pull()
+                next_raction_mask, rdone = self.rolloutBuffer.pull()
         buffer_step = self.rolloutBuffer.steps
         rbuffer_step = self.rolloutBuffer.rsteps
         

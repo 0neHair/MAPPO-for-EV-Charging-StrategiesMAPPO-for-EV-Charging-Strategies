@@ -27,17 +27,6 @@ def adj2rea(adj):
     rea = np.where(p >= 1, 1, 0)
     return rea
 
-def charging_function(SOC):
-    if SOC <= 0.8:
-        return SOC / 0.4
-    elif SOC <= 0.85:
-        return 2 + (SOC - 0.8) / 0.25
-    else:
-        return 2.2 + (SOC -0.85) / 0.1875
-
-def get_charging_time(cur_SOC, final_SOC):
-    return charging_function(final_SOC) - charging_function(cur_SOC)
-
 # environment for all agents in the multiagent world
 # currently code assumes that no agents will be created/destroyed at runtime!
 class Env_base(gym.Env):
@@ -203,15 +192,15 @@ class Env_base(gym.Env):
             self.agents_active.remove(agent)
 
     def get_local_obs(self, i, agent):
-            self.onehot_pos_ *= 0
-            self.onehot_pos_[agent.target_pos] = 1        
-            self.obs_n[i][0] = 0 if agent.target_pos == self.final_pos else self.cs_waiting_time[agent.target_pos] / 100
-            self.obs_n[i][1] = agent.SOC
-            self.obs_n[i][2] = agent.SOC_exp
-            self.obs_n[i][3] = agent.charging_ts
-            self.obs_n[i][4] = agent.finish_trip
-            self.obs_n[i][-self.num_cs:] = self.onehot_pos_
-            self.obs_mask_n[i] = agent.get_choice_set_mask()
+        self.onehot_pos_ *= 0
+        self.onehot_pos_[agent.target_pos] = 1        
+        self.obs_n[i][0] = 0 if agent.target_pos == self.final_pos else self.cs_waiting_time[agent.target_pos] / 100
+        self.obs_n[i][1] = agent.SOC
+        self.obs_n[i][2] = agent.SOC_exp
+        self.obs_n[i][3] = agent.charging_ts
+        self.obs_n[i][4] = agent.finish_trip
+        self.obs_n[i][-self.num_cs:] = self.onehot_pos_
+        self.obs_mask_n[i] = agent.get_choice_set_mask()
 
     def get_share_obs(self):
         self.share_obs[:-self.num_cs] = np.reshape(self.obs_n[:, 1:], (-1, ))
@@ -350,7 +339,7 @@ class Env_base(gym.Env):
             agent.set_caction(caction) # 将选择和充电时间输入给智能体
         else:
             waiting_time = self.cs_waiting_time[agent.target_pos]
-            charging_time = int(get_charging_time(cur_SOC=agent.SOC, final_SOC=self.caction_list[caction]) * 100)
+            charging_time = int(self.get_charging_time(cur_SOC=agent.SOC, final_SOC=self.caction_list[caction]) * 100)
 
             agent.set_caction(caction, waiting_time, charging_time) # 将选择和充电时间输入给智能体
             
@@ -384,3 +373,14 @@ class Env_base(gym.Env):
                 print('{:.3f}\t'.format(self.cs_charger_waiting_time[i][j]/100), end='')
             print('')
         print('Global_inf: ', self.cs_waiting_time)
+
+    def charging_function(self, SOC):
+        if SOC <= 0.8:
+            return SOC / 0.4
+        elif SOC <= 0.85:
+            return 2 + (SOC - 0.8) / 0.25
+        else:
+            return 2.2 + (SOC -0.85) / 0.1875
+
+    def get_charging_time(self, cur_SOC, final_SOC):
+        return self.charging_function(final_SOC) - self.charging_function(cur_SOC)

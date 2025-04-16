@@ -5,7 +5,7 @@ Company: SEU
 '''
 from env.scenarios import load
 
-def Sce_Env(sce_name, seed=0, ps=False, mode=None):
+def Sce_Env(args):
     '''
     Creates a MultiAgentEnv object as env. This can be used similar to a gym
     environment by calling env.reset() and env.step().
@@ -24,16 +24,19 @@ def Sce_Env(sce_name, seed=0, ps=False, mode=None):
     '''
     # load scenario from script
     # scenario = load(sce_name + ".py").Scenario(frame=0.01, seed=seed)
-    scenario = load(sce_name + ".py").Scenario(frame=1, seed=seed) # frame / 100
-    if mode == "GH":
+    scenario = load(args.sce_name + ".py").Scenario(frame=1, seed=args.seed) # frame / 100
+    if args.mode == "GH":
         from env.Env_G import Env_G as Env
-    elif mode == 'NGH':
-        from env.Env_NG import Env_NG as Env
-    elif mode == 'OC':
+    elif args.mode == 'NGH':
+        if args.continuous:
+            from env.Env_continuous import Env_continuous as Env
+        else:
+            from env.Env_NG import Env_NG as Env
+    elif args.mode == 'OC':
         from env.Env_OC import Env_OC as Env
-    elif mode == 'OR':
+    elif args.mode == 'OR':
         from env.Env_OR import Env_OR as Env
     # create multiagent environment
-    env = Env(scenario=scenario, seed=seed, ps=ps)
+    env = Env(scenario=scenario, seed=args.seed, ps=args.ps)
 
     return env

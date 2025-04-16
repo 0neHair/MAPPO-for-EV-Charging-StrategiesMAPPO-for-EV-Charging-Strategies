@@ -263,6 +263,47 @@ class EV_Agent():
         self.r_reward += reward
         self.total_reward += reward
 
+    def set_caction_continuous(self, caction=0, waiting_time=0, charging_time=0):
+        '''
+        设置充电动作，并执行
+        智能体会根据CS状态获得瞬时的等待与充电时间奖励
+        然后再根据接下来要行驶的路程获得行驶时间奖励
+        
+        奖励会预先获得，但不代表智能体已完成相应的活动
+        '''
+        # 记录动作
+        self.caction_memory.append(caction)
+        self.action_memory.append(caction)
+        self.action_type.append('c')
+        self.is_choosing = False # 不处于激活状态
+        reward = 0
+        
+        if caction == 0: # 选择不充电
+            pass
+        else: # 选择充电，然后进行电量状态转移
+            # 充电
+            self.charging_time += charging_time
+            self.waiting_time += waiting_time
+            self.waiting_charging_time = waiting_time + charging_time + self.fixed_charging_wasting_time*100
+            self.is_charging = True
+            self.ev_state = 1
+            
+            self.total_waiting += waiting_time
+            self.total_charging += charging_time
+            self.total_used_time += (charging_time + waiting_time + self.fixed_charging_wasting_time*100)
+            self.charging_ts += 1
+            self.SOC_charged += caction - self.SOC
+            
+            # if self.charging_ts > self.ideal_times + 1:
+            #     reward -= self.multi_times_penalty
+            assert caction > self.SOC, "SOC > target_SOC"
+            self.SOC = caction # 充电更新
+            reward -= (waiting_time/100*self.waiting_time_beta + charging_time/100*self.charging_time_beta + self.fixed_charging_wasting_time)
+            
+        self.c_reward = reward
+        self.r_reward += reward
+        self.total_reward += reward
+
     def set_raction(self, raction=0, reset_record=False):
         '''
         设定路径动作，并完成位置转移和行程消耗计算

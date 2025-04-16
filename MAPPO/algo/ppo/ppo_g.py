@@ -53,7 +53,7 @@ class GPPOAgent(PPOAgent):
             obs_feature, global_cs_feature, rstate, share_rstate,\
                 raction, raction_mask, rlog_prob, rreward, \
                     next_obs_feature, next_global_cs_feature, next_rstate, next_share_rstate,\
-                        rdone = self.rolloutBuffer.pull()
+                        next_raction_mask, rdone = self.rolloutBuffer.pull()
         buffer_step = self.rolloutBuffer.steps
         rbuffer_step = self.rolloutBuffer.rsteps
         

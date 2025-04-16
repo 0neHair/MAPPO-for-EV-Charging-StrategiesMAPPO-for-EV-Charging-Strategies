@@ -54,6 +54,7 @@ class G_RolloutBuffer(RolloutBuffer):
             torch.tensor(self.next_global_cs_feature, dtype=torch.float32).to(self.device),
             torch.tensor(self.next_rstate, dtype=torch.float32).to(self.device),
             torch.tensor(self.next_share_rstate, dtype=torch.float32).to(self.device),
+            torch.tensor(self.next_raction_mask, dtype=torch.float32).to(self.device),
             
             torch.tensor(self.rdone, dtype=torch.float32).to(self.device)
         )

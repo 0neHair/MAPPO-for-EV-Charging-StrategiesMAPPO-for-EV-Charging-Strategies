@@ -84,7 +84,28 @@ def Train(envs, agents, writer, args, mode, agent_num):
                             activate_agent_ri, activate_to_ract \
                                 = envs.step((caction_n, raction_n))
             current_step += 1
-
+            
+            if current_step % 500 == 0:
+                # train_time = time.time()
+                total_actor_closs = 0
+                total_critic_closs = 0
+                total_actor_rloss = 0
+                total_critic_rloss = 0
+                for i, agent in enumerate(agents):
+                    actor_closs, critic_closs, actor_rloss, critic_rloss = agent.train_sac()
+                    total_actor_closs += actor_closs
+                    total_critic_closs += critic_closs
+                    total_actor_rloss += actor_rloss
+                    total_critic_rloss += critic_rloss
+                    if current_step % 1000 == 0:
+                        agent.update_target_param()
+                if mode in ['GH', 'NGH', 'OC']:
+                    writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
+                    writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)
+                    writer.add_scalar("Global_loss/actor_rloss", total_actor_rloss, i_episode)
+                    writer.add_scalar("Global_loss/critic_rloss", total_critic_rloss, i_episode)                
+                # print("Traim: ", time.time()-train_time)
+                
             #* Save current states of activated agents as the results of last actions
             for e in range(args.num_env):
                 for i, agent_i in enumerate(activate_agent_ci[e]):
@@ -167,61 +188,49 @@ def Train(envs, agents, writer, args, mode, agent_num):
         
         print("Sampling: ", time.time()-sample_time)
         ########### Train network ###########
-        train_time = time.time()
-        total_actor_closs = 0
-        total_critic_closs = 0
-        total_entropy_closs = 0
-        total_actor_rloss = 0
-        total_critic_rloss = 0
-        total_entropy_rloss = 0
         
         if args.ps:
             pass
         else:
             for i, agent in enumerate(agents):
-                if mode in ['GH', 'NGH']:
-                    actor_closs, critic_closs, entropy_closs, \
-                        actor_rloss, critic_rloss, entropy_rloss = agent.train()
-                    total_actor_closs += actor_closs
-                    total_critic_closs += critic_closs
-                    total_entropy_closs += entropy_closs
-                    total_actor_rloss += actor_rloss
-                    total_critic_rloss += critic_rloss
-                    total_entropy_rloss += entropy_rloss
-                    # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
-                elif mode in ['OC']:
-                    actor_closs, critic_closs, entropy_closs = agent.train()
-                    total_actor_closs += actor_closs
-                    total_critic_closs += critic_closs
-                    total_entropy_closs += entropy_closs
-                    # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
-                elif mode in ['OR']:
-                    actor_rloss, critic_rloss, entropy_rloss= agent.train()
-                    total_actor_rloss += actor_rloss
-                    total_critic_rloss += critic_rloss
-                    total_entropy_rloss += entropy_rloss
-                    # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
+                # if mode in ['GH', 'NGH']:
+                #     actor_rloss, critic_rloss, entropy_rloss = agent.train_ppo()
+                #     total_actor_rloss += actor_rloss
+                #     total_critic_rloss += critic_rloss
+                #     total_entropy_rloss += entropy_rloss
+                #     # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
+                # elif mode in ['OC']:
+                #     actor_closs, critic_closs, entropy_closs = agent.train()
+                #     total_actor_closs += actor_closs
+                #     total_critic_closs += critic_closs
+                #     total_entropy_closs += entropy_closs
+                #     # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
+                # elif mode in ['OR']:
+                #     actor_rloss, critic_rloss, entropy_rloss= agent.train()
+                #     total_actor_rloss += actor_rloss
+                #     total_critic_rloss += critic_rloss
+                #     total_entropy_rloss += entropy_rloss
+                #     # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
+                #     # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
                 if i_episode % args.save_freq == 0:
                     agent.save("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
-        if mode in ['GH', 'NGH', 'OC']:
-            writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
-            writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)
-            writer.add_scalar("Global_loss/entropy_closs", total_entropy_closs, i_episode)
-        if mode in ['GH', 'NGH', 'OR']:
-            writer.add_scalar("Global_loss/actor_rloss", total_actor_rloss, i_episode)
-            writer.add_scalar("Global_loss/critic_rloss", total_critic_rloss, i_episode)
-            writer.add_scalar("Global_loss/entropy_rloss", total_entropy_rloss, i_episode)
+        # if mode in ['GH', 'NGH', 'OC']:
+        #     writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
+        #     writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)
+        #     writer.add_scalar("Global_loss/entropy_closs", total_entropy_closs, i_episode)
+        # if mode in ['GH', 'NGH', 'OR']:
+        #     writer.add_scalar("Global_loss/actor_rloss", total_actor_rloss, i_episode)
+        #     writer.add_scalar("Global_loss/critic_rloss", total_critic_rloss, i_episode)
+        #     writer.add_scalar("Global_loss/entropy_rloss", total_entropy_rloss, i_episode)
         writer.add_scalar("Global/step_per_second", current_step / (time.time() - start_time), i_episode)
-        print("Traim: ", time.time()-train_time)
     envs.close()
     print("Running time: {}s".format(time.time() - start_time))
     return total_best_reward, best_step
