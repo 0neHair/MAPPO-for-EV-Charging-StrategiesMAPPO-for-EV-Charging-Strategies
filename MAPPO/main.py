@@ -16,10 +16,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sce_name", type=str, default="SY_2")
-    parser.add_argument("--filename", type=str, default="T1")
-    parser.add_argument("--mode", type=str, default="NGH", help='Choose one from [GH, NGH, OC, OR]')
-    parser.add_argument("--train", type=bool, default=True)
+    parser.add_argument("--sce_name", type=str, default="SY_45")
+    parser.add_argument("--filename", type=str, default="T2")
+    parser.add_argument("--mode", type=str, default="OC", help='Choose one from [GH, NGH, OC, OR]')
+    parser.add_argument("--algo", type=str, default="MAPPO", help='Choose one from [MAPPO, MASAC, MADDPG]')
+    parser.add_argument("--train", type=bool, default=False)
     parser.add_argument("--continuous", type=bool, default=False)
 
     parser.add_argument("--ctde", type=bool, default=True)
@@ -141,14 +142,15 @@ def main():
                 caction_dim=caction_dim, caction_list=caction_list,
                 obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
                 raction_dim=raction_dim, raction_list=raction_list,
-                edge_index=edge_index, buffer=buffer, device=device, args=args
+                edge_index=edge_index, buffer=buffer, device=device, 
+                args=args
             )
         if args.train:
-            path = "save/{}_{}_{}".format(args.sce_name, args.filename, mode)
+            path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
             if not os.path.exists(path):
                 os.makedirs(path)
         else:
-            agents.load("save/{}_{}_{}/agents_{}".format(args.sce_name, args.filename, mode, mode))
+            agents.load("save/{}_{}_{}_{}/agents_{}".format(args.sce_name, args.filename, mode, args.algo, mode))
         print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.lr, args.gamma))
         if args.train: # train
             best_reward, best_step = Train(envs, agents, writer, args, mode, agent_num)
@@ -158,15 +160,20 @@ def main():
             Evaluate(envs, agents, args, mode, agent_num)
     else:
         if mode in ['GH']:
+            assert args.algo == 'MAPPO', "Error"
             from algo.ppo.ppo_g import GPPOAgent as Agent
             from buffer.buffer_g import G_RolloutBuffer as Buffer
         else:
-            # from algo.ddpg_ppo.ddpg_ppo import DDPG_PPOAgent as Agent
-            # from trainer.train_ddpg import Train
-            # from algo.sac.sac import SACAgent as Agent
-            # from trainer.train_sac import Train
-            from algo.ppo.ppo_base import PPOAgent as Agent
-            from trainer.train import Train
+            if args.algo == 'MADDPG':
+                assert args.continuous == True, "Continuous"
+                from algo.ddpg_ppo.ddpg_ppo import DDPG_PPOAgent as Agent
+                from trainer.train_ddpg import Train
+            if args.algo == 'MASAC':
+                from algo.sac.sac import SACAgent as Agent
+                from trainer.train_sac import Train
+            if args.algo == 'MAPPO':
+                from algo.ppo.ppo_base import PPOAgent as Agent
+                from trainer.train import Train
             from buffer.buffer_base import RolloutBuffer as Buffer
         
         for i in range(agent_num):
@@ -187,11 +194,11 @@ def main():
                     edge_index=edge_index, buffer=buffer, device=device, args=args
                 )
             if args.train:
-                path = "save/{}_{}_{}".format(args.sce_name, args.filename, mode)
+                path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
                 if not os.path.exists(path):
                     os.makedirs(path)
             else:
-                agent.load("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
+                agent.load("save/{}_{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, args.algo, i, mode))
             agents.append(agent)
         
         print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.lr, args.gamma))

@@ -22,10 +22,9 @@ def Train(envs, agents, writer, args, mode, agent_num):
         sample_time = time.time()
         # 学习率递减
         if args.ps:
-            lr = agents[0].lr_decay(i_episode)
+            lr = agents.lr_decay(i_episode)
         else:
-            for agent in agents:
-                lr = agent.lr_decay(i_episode)
+            lr = agents.lr_decay(i_episode)
         writer.add_scalar("Global/lr", lr, i_episode-1)
         
         ########### Initialize env ###########
@@ -60,20 +59,20 @@ def Train(envs, agents, writer, args, mode, agent_num):
                     if activate_to_cact[e][i]:
                         active_to_cpush[e][agent_i] = True
                         if mode not in ['OR']:
-                            caction_n[e][agent_i] = choose_cation(
-                                args, e, agents[agent_i], 
+                            caction_n[e][agent_i] = choose_cation_ps(
+                                args, e, agents, 
                                 obs_n[e][agent_i], 
-                                share_obs[e]
+                                share_obs[e], agent_i
                             )
                 # Routing decision
                 for i, agent_i in enumerate(activate_agent_ri[e]):
                     if activate_to_ract[e][i]:
                         active_to_rpush[e][agent_i] = True
                         if mode not in ['OC']:
-                            raction_n[e][agent_i] = choose_raction(
-                                args, e, agents[agent_i], 
+                            raction_n[e][agent_i] = choose_raction_ps(
+                                args, e, agents, 
                                 obs_feature_n[e][agent_i], obs_n[e][agent_i], obs_mask_n[e][agent_i],
-                                global_cs_feature[e], share_obs[e]
+                                global_cs_feature[e], share_obs[e], agent_i
                             )
             
             #* Run env until agent is activated
@@ -90,25 +89,27 @@ def Train(envs, agents, writer, args, mode, agent_num):
                 for i, agent_i in enumerate(activate_agent_ci[e]):
                     if active_to_cpush[e][agent_i]:
                         if mode not in ['OR']:
-                            push_last_c(
-                                args, e, agents[agent_i],
+                            push_last_c_ps(
+                                args, e, agents,
                                 creward_n[e][agent_i], 
                                 obs_n[e][agent_i],
                                 share_obs[e],
-                                done_n[e][agent_i]
+                                done_n[e][agent_i],
+                                agent_i
                             )
                             buffer_times[e][agent_i] += 1
                 for i, agent_i in enumerate(activate_agent_ri[e]):
                     if active_to_rpush[e][agent_i]:
                         agents_total_reward[e][agent_i] += rreward_n[e][agent_i][0]
                         if mode not in ['OC']:
-                            push_last_r(
-                                args, e, agents[agent_i],
+                            push_last_r_ps(
+                                args, e, agents,
                                 rreward_n[e][agent_i], 
                                 obs_feature_n[e][agent_i], obs_n[e][agent_i],
                                 global_cs_feature[e], share_obs[e],
                                 obs_mask_n[e][agent_i],
-                                done_n[e][agent_i]
+                                done_n[e][agent_i],
+                                agent_i
                             )
                             rbuffer_times[e][agent_i] += 1
 
@@ -175,43 +176,39 @@ def Train(envs, agents, writer, args, mode, agent_num):
         total_critic_rloss = 0
         total_entropy_rloss = 0
         
-        if args.ps:
-            pass
-        else:
-            for i, agent in enumerate(agents):
-                if mode in ['GH', 'NGH']:
-                    actor_closs, critic_closs, entropy_closs, \
-                        actor_rloss, critic_rloss, entropy_rloss = agent.train()
-                    total_actor_closs += actor_closs
-                    total_critic_closs += critic_closs
-                    total_entropy_closs += entropy_closs
-                    total_actor_rloss += actor_rloss
-                    total_critic_rloss += critic_rloss
-                    total_entropy_rloss += entropy_rloss
-                    # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
-                elif mode in ['OC']:
-                    actor_closs, critic_closs, entropy_closs = agent.train()
-                    total_actor_closs += actor_closs
-                    total_critic_closs += critic_closs
-                    total_entropy_closs += entropy_closs
-                    # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
-                elif mode in ['OR']:
-                    actor_rloss, critic_rloss, entropy_rloss= agent.train()
-                    total_actor_rloss += actor_rloss
-                    total_critic_rloss += critic_rloss
-                    total_entropy_rloss += entropy_rloss
-                    # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
-                    # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
-                if i_episode % args.save_freq == 0:
-                    agent.save("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
+        if mode in ['GH', 'NGH']:
+            actor_closs, critic_closs, entropy_closs, \
+                actor_rloss, critic_rloss, entropy_rloss = agents.train()
+            total_actor_closs += actor_closs
+            total_critic_closs += critic_closs
+            total_entropy_closs += entropy_closs
+            total_actor_rloss += actor_rloss
+            total_critic_rloss += critic_rloss
+            total_entropy_rloss += entropy_rloss
+            # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
+            # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
+            # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
+            # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
+            # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
+            # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
+        elif mode in ['OC']:
+            actor_closs, critic_closs, entropy_closs = agents.train()
+            total_actor_closs += actor_closs
+            total_critic_closs += critic_closs
+            total_entropy_closs += entropy_closs
+            # writer.add_scalar("Loss/agent_{}_actor_closs".format(i), actor_closs, i_episode)
+            # writer.add_scalar("Loss/agent_{}_critic_closs".format(i), critic_closs, i_episode)
+            # writer.add_scalar("Loss/agent_{}_entropy_closs".format(i), entropy_closs, i_episode)
+        elif mode in ['OR']:
+            actor_rloss, critic_rloss, entropy_rloss= agents.train()
+            total_actor_rloss += actor_rloss
+            total_critic_rloss += critic_rloss
+            total_entropy_rloss += entropy_rloss
+            # writer.add_scalar("Loss/agent_{}_actor_rloss".format(i), actor_rloss, i_episode)
+            # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
+            # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
+        if i_episode % args.save_freq == 0:
+            agents.save("save/{}_{}_{}/agents_{}".format(args.sce_name, args.filename, mode, mode))
         if mode in ['GH', 'NGH', 'OC']:
             writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
             writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)
@@ -221,7 +218,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
             writer.add_scalar("Global_loss/critic_rloss", total_critic_rloss, i_episode)
             writer.add_scalar("Global_loss/entropy_rloss", total_entropy_rloss, i_episode)
         writer.add_scalar("Global/step_per_second", current_step / (time.time() - start_time), i_episode)
-        print("Traim: ", time.time()-train_time)
+        print("Train: ", time.time()-train_time)
     envs.close()
     print("Running time: {}s".format(time.time() - start_time))
     return total_best_reward, best_step

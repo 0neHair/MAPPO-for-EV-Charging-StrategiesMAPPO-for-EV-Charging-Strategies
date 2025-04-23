@@ -39,6 +39,7 @@ class PPOAgentPS(object):
         self.grad_clip = args.max_grad_clip
         self.entropy_coef = args.entropy_coef
         self.rolloutBuffer = buffer
+        self.agent_num = buffer.agent_num
 
         if self.mode in ['GH', 'NGH', 'OC']:
             self.charge_network = torch.compile(cNetwork(
@@ -102,14 +103,14 @@ class PPOAgentPS(object):
         with torch.no_grad():
             if self.mode == 'NGH':
                 # 充电部分
-                cvalues = self.charge_network.get_value(share_state).squeeze(dim=-1)
-                next_cvalues = self.charge_network.get_value(next_share_state).squeeze(dim=-1)
+                cvalues = self.charge_network.get_value(share_state).view(buffer_step, -1, self.agent_num)
+                next_cvalues = self.charge_network.get_value(next_share_state).view(buffer_step, -1, self.agent_num)
                 cadvantage = torch.zeros_like(cvalues).to(self.device)
                 cdelta = creward + self.gamma * (1 - cdone) * next_cvalues - cvalues
                 cgae = 0
                 # 路径部分
-                rvalues = self.route_network.get_value(share_rstate).view(rbuffer_step, -1)
-                next_rvalues = self.route_network.get_value(next_share_rstate).view(rbuffer_step, -1)
+                rvalues = self.route_network.get_value(share_rstate).view(rbuffer_step, -1, self.agent_num)
+                next_rvalues = self.route_network.get_value(next_share_rstate).view(rbuffer_step, -1, self.agent_num)
                 radvantage = torch.zeros_like(rvalues).to(self.device)
                 rdelta = rreward + self.gamma * (1 - rdone) * next_rvalues - rvalues
                 rgae = 0

@@ -86,6 +86,12 @@ class Env_base(gym.Env):
         self.state_dim = len(self.state_name) # 状态维度
         if self.ps:
             self.state_dim += self.agent_num # 状态维度
+        self.one_hot_id = []
+        for i in range(self.agent_num):
+            one_hot_id = np.zeros((1, self.agent_num))
+            one_hot_id[0][i] = 1
+            self.one_hot_id.append(one_hot_id)
+        
         # 全局
         self.share_name = ([
             'agent_SOC', 'exp_SOC', 
@@ -199,11 +205,18 @@ class Env_base(gym.Env):
         self.obs_n[i][2] = agent.SOC_exp
         self.obs_n[i][3] = agent.charging_ts
         self.obs_n[i][4] = agent.finish_trip
-        self.obs_n[i][-self.num_cs:] = self.onehot_pos_
+        if self.ps:
+            self.obs_n[i][-(self.num_cs+self.agent_num):-self.agent_num] = self.onehot_pos_
+            self.obs_n[i][-self.agent_num:] = self.one_hot_id[agent.id] 
+        else:
+            self.obs_n[i][-self.num_cs:] = self.onehot_pos_
         self.obs_mask_n[i] = agent.get_choice_set_mask()
 
     def get_share_obs(self):
-        self.share_obs[:-self.num_cs] = np.reshape(self.obs_n[:, 1:], (-1, ))
+        if self.ps:
+            self.share_obs[:-self.num_cs] = np.reshape(self.obs_n[:, 1:-self.agent_num], (-1, ))
+        else:
+            self.share_obs[:-self.num_cs] = np.reshape(self.obs_n[:, 1:], (-1, ))
         self.share_obs[-self.num_cs:] = self.cs_waiting_time / 100
 
     def agents_arrange(self):
