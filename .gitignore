@@ -12,3 +12,6 @@ Result - 副本
 Result_old
 MAPPO_origin
 MAPPO_origin2
+*.zip
+logs*
+save*

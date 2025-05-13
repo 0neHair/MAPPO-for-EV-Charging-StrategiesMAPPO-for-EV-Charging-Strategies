@@ -18,9 +18,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sce_name", type=str, default="SY_45")
     parser.add_argument("--filename", type=str, default="T2")
-    parser.add_argument("--mode", type=str, default="OC", help='Choose one from [GH, NGH, OC, OR]')
+    parser.add_argument("--mode", type=str, default="NGH", help='Choose one from [GH, NGH, OC, OR]')
     parser.add_argument("--algo", type=str, default="MAPPO", help='Choose one from [MAPPO, MASAC, MADDPG]')
-    parser.add_argument("--train", type=bool, default=False)
+    parser.add_argument("--train", type=bool, default=True)
     parser.add_argument("--continuous", type=bool, default=False)
 
     parser.add_argument("--ctde", type=bool, default=True)

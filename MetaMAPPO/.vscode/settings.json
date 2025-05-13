@@ -1,0 +1,5 @@
+{
+    "powermode.enabled": false, // 关闭抖动（喜欢的也可以选择不关闭）
+    "powermode.presets": "flames",
+    "powermode.shake.intensity": 0
+}
