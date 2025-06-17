@@ -12,7 +12,8 @@ class EV_Agent():
             enter_time,
             SOC_init=0.5, SOC_exp=0.5, 
             SOC90_penalty=0, SOC20_penalty=0,
-            consume=0.15, speed=100, E_max=60
+            consume=0.15, speed=100, E_max=60,
+            obedience=1
         ):
         self.id = id
         self.frame = frame #  帧
@@ -80,6 +81,8 @@ class EV_Agent():
         self.waiting_time_beta = 1 # 排队时间系数
         self.charging_time_beta = 1 # 充电时间系数
         self.fixed_charging_wasting_time = 0 # 充电固定损失时间
+        
+        self.obedience = obedience # 遵从概率，执行模型所给决策的概率
         
         self.consume = consume # kWh/km 每公里消耗电量 0.15  
         self.speed = speed # km/h 均匀车速 100
@@ -229,7 +232,20 @@ class EV_Agent():
         然后再根据接下来要行驶的路程获得行驶时间奖励
         
         奖励会预先获得，但不代表智能体已完成相应的活动
+        
+        智能体有概率不服从算法所给策略：
+            * 当SOC > 0.6且选择充电时，智能体可能选择不去充电
+            * 当SOC < 0.25且选择不充电时，智能体可能选择充满
         '''
+        
+        if np.random.uniform(0, 1) > self.obedience:
+            if caction != 0:
+                if self.SOC > 0.6:
+                    caction = 0
+            else:
+                if self.SOC < 0.25:
+                    caction = self.caction_list[-1]
+            
         # 记录动作
         self.caction_memory.append(caction)
         self.action_memory.append(caction)
@@ -310,7 +326,14 @@ class EV_Agent():
         智能体会在此函数判断终止
         
         奖励会预先获得，但不代表智能体已完成相应的活动
+        智能体有概率不服从算法所给策略：
+            * 当所给策略即将偏离最短路时，智能体可能选择最短路
         '''
+        
+        if np.random.uniform(0, 1) > self.obedience:
+            if self.target_pos in self.route.keys():
+                raction = self.route[self.target_pos]
+        
         reward = 0 # 记录接下来一系列操作的奖励
          # 记录动作
         self.raction_memory.append(raction)

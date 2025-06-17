@@ -16,27 +16,31 @@ class SGD(object):
     def step(self, param_grads: Tuple = None):
         if param_grads:
             # use autograd.grad(), called by adapt
+            new_params = {}
             for name, grad in zip(self.param_name, param_grads):
                 if "." in name:
                     # policy.0.bias -> module_name: policy.0, param_name: bias
                     module_name, param_name = name.rsplit(".", 1)
-                    self.update(self.module_name[module_name], param_name, grad)
+                    new_params[name] = self.module_name[module_name]._parameters[param_name] - self.lr * grad
                 else:
-                    self.update(self.module, name, grad)
+                    new_params[name] = self.module._parameters[name] - self.lr * grad
+            return new_params
         else:
             # use loss.backward(), called by meta update
             torch.set_grad_enabled(False)
+            new_params = {}
             for name, param in self.module.named_parameters():
                 if param.grad is not None:
-                    param.data = param.data - self.lr * param.grad
+                    new_params[name] = param.data - self.lr * param.grad
             torch.set_grad_enabled(True)
+            return new_params
 
-    def update(self, module: torch.nn.Module, param_name: str, grad):
-        new_param = module._parameters[param_name] - self.lr * grad
-        # new_param.retain_grad()
-        del module._parameters[param_name]
-        setattr(module, param_name, new_param)
-        module._parameters[param_name] = new_param
+    # def update(self, module: torch.nn.Module, param_name: str, grad):
+    #     new_param = module._parameters[param_name] - self.lr * grad
+    #     # new_param.retain_grad()
+    #     del module._parameters[param_name]
+    #     setattr(module, param_name, new_param)
+    #     module._parameters[param_name] = new_param
 
     def zero_grad(self, set_to_none: bool = True):
         for param in self.module.parameters():

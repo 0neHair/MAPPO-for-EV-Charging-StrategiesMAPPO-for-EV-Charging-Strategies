@@ -2,6 +2,7 @@ import copy
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+import networkx as nx
 from env.EV_agent import EV_Agent
 
 def adj2eindex(adj, map_shape):
@@ -161,7 +162,20 @@ class Env_base(gym.Env):
             o = self.edge_index[0][i]
             d = self.edge_index[1][i]
             self.edge_dic[str(o)+"-"+str(d)] = []
+
+        self.edge_list = []
+        for l in range(len(self.edge_attr)):
+            self.edge_list.append((
+                self.edge_index[0][l],
+                self.edge_index[1][l],
+                {'length': self.edge_attr[l][0]}
+            ))
+        self.graph = nx.DiGraph()
+        self.graph.add_edges_from(self.edge_list)
         
+        for agent in self.agents:
+            agent.route = self.shortest_way()
+
     def seed(self, seed=None):
         if seed is None:
             np.random.seed(1)
@@ -366,7 +380,19 @@ class Env_base(gym.Env):
         
     def set_n_raction(self, agent: EV_Agent, raction):
         agent.set_raction(raction, reset_record=True)
-
+        
+    def weight_func(self, u, v, d):
+        node_u_wt = self.cs_waiting_time[u] / 100
+        edge_wt = d.get("length", 1)
+        return node_u_wt + edge_wt / 100
+    
+    def shortest_way(self):
+        node_path = nx.dijkstra_path(self.graph, 0, self.final_pos, weight=self.weight_func) # type: ignore
+        path_dic = {}
+        for p in range(len(node_path)-1): # type: ignore
+            path_dic[node_path[p]] = node_path[p+1] # type: ignore
+        return path_dic
+    
     def render(self):
         print('Time: {} h'.format(self.total_time / 100))
 

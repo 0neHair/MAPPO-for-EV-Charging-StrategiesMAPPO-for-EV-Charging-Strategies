@@ -211,7 +211,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
                     # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
                     # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
                 if i_episode % args.save_freq == 0:
-                    agent.save("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
+                    agent.save("save/{}_{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, args.algo, i, mode))
         if mode in ['GH', 'NGH', 'OC']:
             writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
             writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)

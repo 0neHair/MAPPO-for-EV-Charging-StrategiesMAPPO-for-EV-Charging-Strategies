@@ -16,13 +16,16 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sce_name", type=str, default="SY_25")
-    task_list = ['SY_25', 'SY_251']
+    parser.add_argument("--sce_name", type=str, default="SY_2")
+    task_list = ['SY_2', 'SY_2p']
     parser.add_argument("--task_list", type=list, default=task_list)
     parser.add_argument("--filename", type=str, default="test")
     parser.add_argument("--mode", type=str, default="NGH", help='Choose one from [GH, NGH, OC, OR]')
     parser.add_argument("--algo", type=str, default="MAPPO", help='Choose one from [MAPPO, MASAC, MADDPG]')
-    parser.add_argument("--meta_algo", type=str, default="MAML", help='Choose one from [MAML, Reptile]')
+    
+    parser.add_argument("--meta_algo", type=str, default="MAML", help='Choose one from [MAML, Reptile, Adapt]')
+    parser.add_argument("--adapt_from", type=str, default="MAML", help='Choose one from [MAML, Reptile]')
+    
     parser.add_argument("--train", type=bool, default=True)
     parser.add_argument("--continuous", type=bool, default=False)
 
@@ -31,7 +34,7 @@ def parse_args():
     parser.add_argument("--randomize", type=bool, default=False)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--num_env", type=int, default=1) # 环境数
-    parser.add_argument("--num_update", type=int, default=100) # 最大更新轮次
+    parser.add_argument("--num_update", type=int, default=3000) # 最大更新轮次
     parser.add_argument("--save_freq", type=int, default=50) # 保存频率
 
     parser.add_argument("--ps", type=bool, default=False) # parameter sharing
@@ -44,12 +47,12 @@ def parse_args():
     parser.add_argument("--meta_lr", type=float, default=2.5e-4) # 学习率
     parser.add_argument("--gamma", type=float, default=0.95) # 折减因子
     parser.add_argument("--gae_lambda", type=float, default=0.95)
-    parser.add_argument("--k_epoch", type=int, default=1) # 策略更新次数
+    parser.add_argument("--k_epoch", type=int, default=10) # 策略更新次数
     parser.add_argument("--eps_clip", type=float, default=0.05) # 裁剪参数
     parser.add_argument("--max_grad_clip", type=float, default=0.5)
     parser.add_argument("--entropy_coef", type=float, default=0.01) # 熵正则
-    parser.add_argument("--single_batch_size", type=int, default=60) # 单个buffer数据量
-    parser.add_argument("--single_rbatch_size", type=int, default=30) # 单个buffer数据量
+    parser.add_argument("--single_batch_size", type=int, default=40) # 单个buffer数据量
+    parser.add_argument("--single_rbatch_size", type=int, default=20) # 单个buffer数据量
     parser.add_argument("--num_mini_batch", type=int, default=1) # 小batcch数量
     arguments = parser.parse_args()
     return arguments
@@ -121,12 +124,14 @@ def main():
         global_features_shape = (graph.shape[0], obs_features_dim)
         
     if args.train:
+        envs = make_train_env(args.sce_name, args, agent_num)
         task_list = []
         for task_name in task_name_list:
             task_list.append(make_train_env(task_name, args, agent_num))
         writer = SummaryWriter(log_dir="logs/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, int(time.time())))
         writer.add_text("HyperParameters", 
                         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])))
+    
     else:
         # envs = env
         pass
@@ -177,15 +182,14 @@ def main():
                     raction_dim=raction_dim, raction_list=raction_list,
                     edge_index=edge_index, buffer=buffer_list, validbuffer=validbuffer_list, device=device, args=args
                 )
-            if args.train:
-                path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
-                if not os.path.exists(path):
-                    os.makedirs(path)
-            else:
-                agent.load("save/{}_{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, args.algo, i, mode))
+
+            args.path = "save/{}_{}_{}".format(args.filename, mode, args.meta_algo)
+            if not os.path.exists(args.path):
+                os.makedirs(args.path)
+            # agent.load(args.path + "/agent_{}_{}_{}".format(i, 'meta', args.mode))
             agents.append(agent)
     
-    if args.meta_algo == 'Reptile':
+    elif args.meta_algo == 'Reptile':
         from algo.ppo_.ppo_base import PPOAgent as Agent
         from meta_trainer.train_reptile import Meta_Trainer
         from buffer.buffer_base import RolloutBuffer as Buffer
@@ -207,29 +211,60 @@ def main():
                     raction_dim=raction_dim, raction_list=raction_list,
                     edge_index=edge_index, buffer=buffer, device=device, args=args
                 )
-            if args.train:
-                path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.meta_algo)
-                if not os.path.exists(path):
-                    os.makedirs(path)
-            else:
-                agent.load("save/{}_{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, args.meta_algo, i, mode))
+
+            args.path = "save/{}_{}_{}".format(args.filename, mode, args.meta_algo)
+            if not os.path.exists(args.path):
+                os.makedirs(args.path)
+            # agent.load(args.path + "/agent_{}_{}_{}".format(i, 'meta', args.mode))
+            agents.append(agent)
+            
+    elif args.meta_algo == 'Adapt':
+        from algo.ppo_.ppo_base import PPOAgent as Agent
+        from trainer.train import Train
+        from buffer.buffer_base import RolloutBuffer as Buffer
+        
+        for i in range(agent_num):
+            buffer = Buffer(
+                    steps=args.single_batch_size, rsteps=args.single_rbatch_size, num_env=args.num_env,
+                    state_shape=state_shape, share_shape=share_shape, caction_shape=(1, ), # type: ignore
+                    edge_index=edge_index,
+                    obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
+                    raction_shape=(1, ), # type: ignore
+                    raction_mask_shape=raction_mask_shape,
+                    device=device
+                )
+            agent = Agent(
+                    state_dim=state_dim, share_dim=share_dim, 
+                    caction_dim=caction_dim, caction_list=caction_list,
+                    obs_features_shape=obs_features_shape, global_features_shape=global_features_shape, 
+                    raction_dim=raction_dim, raction_list=raction_list,
+                    edge_index=edge_index, buffer=buffer, device=device, args=args
+                )
+            #TODO: load agent
+            agent.load("save/{}_{}_{}/agent_{}_{}_{}".format(args.filename, mode, args.adapt_from, i, 'meta', mode))
+            args.path = "save/{}_{}_{}".format(args.filename, mode, args.meta_algo+'-'+args.adapt_from)
+            if not os.path.exists(args.path):
+                os.makedirs(args.path)
             agents.append(agent)
     
-    
     print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.meta_lr, args.gamma))
-    trainer = Meta_Trainer(
-        args,
-        task_list, agents, writer,
-        adapt_num=args.adapt_num, 
-        device=device,
-    )
-    if args.train: # train
-        trainer.train(epochs=1000)
+    
+    if args.meta_algo == 'Adapt':
+        if args.train: # train
+            best_reward, best_step = Train(envs, agents, writer, args, mode, agent_num)
+            writer.close()
+            print("best_reward:{}   best_step:{}".format(best_reward, best_step))
+        else: # evaluate
+            Evaluate(envs, agents, args, mode, agent_num)
+    else:
+        trainer = Meta_Trainer(
+            args,
+            task_list, agents, writer,
+            adapt_num=args.adapt_num, 
+            device=device,
+        )
+        trainer.train(epochs=args.num_update)
         writer.close()
-        # print("best_reward:{}   best_step:{}".format(best_reward, best_step))
-    else: # evaluate
-        # Evaluate(envs, agents, args, mode, agent_num)
-        pass
 
 if __name__ == '__main__':
     main()

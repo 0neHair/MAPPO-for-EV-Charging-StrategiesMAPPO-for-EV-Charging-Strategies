@@ -19,7 +19,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
     caction_n = np.array([[-1 for _ in range(agent_num)] for __ in range(args.num_env)])
     raction_n = np.array([[-1 for _ in range(agent_num)] for __ in range(args.num_env)])
     for i_episode in range(1, args.num_update + 1):
-        sample_time = time.time()
+        # sample_time = time.time()
         # 学习率递减
         if args.ps:
             lr = agents[0].lr_decay(i_episode)
@@ -75,6 +75,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
                                 obs_feature_n[e][agent_i], obs_n[e][agent_i], obs_mask_n[e][agent_i],
                                 global_cs_feature[e], share_obs[e]
                             )
+                            pass
             
             #* Run env until agent is activated
             obs_n, obs_feature_n, obs_mask_n, \
@@ -165,9 +166,9 @@ def Train(envs, agents, writer, args, mode, agent_num):
                         )
                 )
         
-        print("Sampling: ", time.time()-sample_time)
+        # print("Sampling: ", time.time()-sample_time)
         ########### Train network ###########
-        train_time = time.time()
+        # train_time = time.time()
         total_actor_closs = 0
         total_critic_closs = 0
         total_entropy_closs = 0
@@ -211,7 +212,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
                     # writer.add_scalar("Loss/agent_{}_critic_rloss".format(i), critic_rloss, i_episode)
                     # writer.add_scalar("Loss/agent_{}_entropy_rloss".format(i), entropy_rloss, i_episode)
                 if i_episode % args.save_freq == 0:
-                    agent.save("save/{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, i, mode))
+                    agent.save(args.path + "/agent_{}_{}".format(i, mode))
         if mode in ['GH', 'NGH', 'OC']:
             writer.add_scalar("Global_loss/actor_closs", total_actor_closs, i_episode)
             writer.add_scalar("Global_loss/critic_closs", total_critic_closs, i_episode)
@@ -221,7 +222,7 @@ def Train(envs, agents, writer, args, mode, agent_num):
             writer.add_scalar("Global_loss/critic_rloss", total_critic_rloss, i_episode)
             writer.add_scalar("Global_loss/entropy_rloss", total_entropy_rloss, i_episode)
         writer.add_scalar("Global/step_per_second", current_step / (time.time() - start_time), i_episode)
-        print("Traim: ", time.time()-train_time)
+        # print("Traim: ", time.time()-train_time)
     envs.close()
     print("Running time: {}s".format(time.time() - start_time))
     return total_best_reward, best_step

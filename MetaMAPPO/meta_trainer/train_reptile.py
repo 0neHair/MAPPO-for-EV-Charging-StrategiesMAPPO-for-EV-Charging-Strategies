@@ -14,6 +14,7 @@ class Meta_Trainer:
             device="cpu",
         ):
         self.tasks = task_list
+        self.task_num = len(task_list)
         self.agents = agents
         self.agent_num = len(agents)
         self.args = args
@@ -36,6 +37,9 @@ class Meta_Trainer:
         self.adapt_num = adapt_num
         self.device = torch.device(device)
         self.iter = 0
+
+        self.log_interval = 10
+        self.save_freq = args.save_freq
 
     def update_theta(self, theta, old_theta):
         torch.set_grad_enabled(False)
@@ -73,10 +77,11 @@ class Meta_Trainer:
 
         self.writer.add_scalar("Global_loss/critic_closs_task_{}".format(task_id), total_critic_closs, epoch)
         self.writer.add_scalar("Global_loss/critic_rloss_task_{}".format(task_id), total_critic_rloss, epoch)
-        self.writer.add_scalar("Global_loss/actor_closs_task_{}".format(task_id), total_actor_closs, epoch)
-        self.writer.add_scalar("Global_loss/entropy_closs_task_{}".format(task_id), total_entropy_closs, epoch)
-        self.writer.add_scalar("Global_loss/actor_rloss_task_{}".format(task_id), total_actor_rloss, epoch)
-        self.writer.add_scalar("Global_loss/entropy_rloss_task_{}".format(task_id), total_entropy_rloss, epoch)
+        # self.writer.add_scalar("Global_loss/actor_closs_task_{}".format(task_id), total_actor_closs, epoch)
+        # self.writer.add_scalar("Global_loss/entropy_closs_task_{}".format(task_id), total_entropy_closs, epoch)
+        # self.writer.add_scalar("Global_loss/actor_rloss_task_{}".format(task_id), total_actor_rloss, epoch)
+        # self.writer.add_scalar("Global_loss/entropy_rloss_task_{}".format(task_id), total_entropy_rloss, epoch)
+        return total_actor_closs, total_entropy_closs, total_actor_rloss, total_entropy_rloss
 
     def save_theta(self):
         for agent in self.agents:
@@ -85,41 +90,44 @@ class Meta_Trainer:
     def train(self, epochs: int):
         start_time = time.time()
         for epoch in range(1, epochs+1):
-            
+            total_actor_closs = 0
+            total_entropy_closs = 0
+            total_actor_rloss = 0
+            total_entropy_rloss = 0
             for  t, task in enumerate(self.tasks):
                 self.save_theta()
                 
-                t1 = time.time()
+                # t1 = time.time()
                 self.sample(epoch=epoch, task_id=t) #* 新更新后的策略参数，取一串轨迹用于验证
-                print(time.time()-t1)
+                # print(time.time()-t1)
 
-                t2 = time.time()
-
-                self.train_ppo(epoch=epoch, task_id=t) #* 计算adv
-                print(time.time()-t2)
+                # t2 = time.time()
+                actor_closs, entropy_closs, actor_rloss, entropy_rloss = self.train_ppo(epoch=epoch, task_id=t) #* 计算adv
+                total_actor_closs += actor_closs
+                total_entropy_closs += entropy_closs
+                total_actor_rloss += actor_rloss
+                total_entropy_rloss += entropy_rloss
+                # print(time.time()-t2)
                 
-                t3 = time.time()
+                # t3 = time.time()
                 self.adapt(epoch=epoch)
-                print(time.time()-t3)
-
-            if epoch % 50 == 0:
-                for i, agent in enumerate(self.agents):
-                    agent.save("save/{}_{}_{}_{}/agent_{}_{}_{}".format(self.args.sce_name, self.args.filename, self.mode, self.args.meta_algo, i, 'meta', self.mode))
-
-            # self.writer.add_scalar("Global_loss/actor_closs", total_cactor_loss, epoch)
-            # self.writer.add_scalar("Global_loss/entropy_closs", total_centropy, epoch)
-            # self.writer.add_scalar("Global_loss/actor_rloss", total_ractor_loss, epoch)
-            # self.writer.add_scalar("Global_loss/entropy_rloss", total_rentropy, epoch)
-            # # print('T3: ', time.time()-t3)
-
-            self.writer.add_scalar("Global/time_step", (self.iter + 1) / (time.time() - start_time), epoch)
-            self.iter += 1
-            if epoch % 50 == 0:
+                # print(time.time()-t3)
+                
+            self.writer.add_scalar("Global_loss/actor_closs", total_actor_closs/self.task_num, epoch)
+            self.writer.add_scalar("Global_loss/entropy_closs", total_entropy_closs/self.task_num, epoch)
+            self.writer.add_scalar("Global_loss/actor_rloss", total_actor_rloss/self.task_num, epoch)
+            self.writer.add_scalar("Global_loss/entropy_rloss", total_entropy_rloss/self.task_num, epoch)
+            if epoch % self.log_interval == 0:
                 print(
                         'Episode {} \t Total reward: {:.3f} \t Average reward: {:.3f} \t Total best reward: {:.3f} \t Average best reward: {:.3f}'.format(
                                 epoch, self.global_total_reward, self.global_total_reward/self.agent_num, self.total_best_reward, self.total_best_reward/self.agent_num
                             )
                     )
+            if epoch % self.save_interval == 0:
+                for i, agent in enumerate(self.agents):
+                    agent.save(self.args.path + "/agent_{}_{}_{}".format(i, 'meta', self.mode))
+            self.writer.add_scalar("Global/time_step", (self.iter + 1) / (time.time() - start_time), epoch)
+            self.iter += 1
             
     def sample(self, epoch, task_id):
         env = self.tasks[task_id]

@@ -16,11 +16,11 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sce_name", type=str, default="SY_45")
-    parser.add_argument("--filename", type=str, default="T2")
-    parser.add_argument("--mode", type=str, default="OC", help='Choose one from [GH, NGH, OC, OR]')
+    parser.add_argument("--sce_name", type=str, default="SY_2")
+    parser.add_argument("--filename", type=str, default="T1")
+    parser.add_argument("--mode", type=str, default="NGH", help='Choose one from [GH, NGH, OC, OR]')
     parser.add_argument("--algo", type=str, default="MAPPO", help='Choose one from [MAPPO, MASAC, MADDPG]')
-    parser.add_argument("--train", type=bool, default=False)
+    parser.add_argument("--train", type=bool, default=True)
     parser.add_argument("--continuous", type=bool, default=False)
 
     parser.add_argument("--ctde", type=bool, default=True)
@@ -49,10 +49,10 @@ def parse_args():
     arguments = parser.parse_args()
     return arguments
 
-def make_train_env(args, agent_num):
+def make_train_env(sce_name, args, agent_num):
     def get_env_fn():
         def init_env():
-            env = Sce_Env(args)
+            env = Sce_Env(sce_name, args)
             return env
         return init_env
     if args.num_env == 1:
@@ -69,7 +69,7 @@ def main():
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-    env = Sce_Env(args)
+    env = Sce_Env(args.sce_name, args)
     caction_list = env.caction_list # 可选充电动作列表
     raction_list = env.raction_list # 可选路径动作列表
     
@@ -112,8 +112,9 @@ def main():
         share_shape = (state_dim, )
         global_features_dim = env.obs_features_dim
         global_features_shape = (graph.shape[0], obs_features_dim)
+        
     if args.train:
-        envs = make_train_env(args, agent_num)
+        envs = make_train_env(args.sce_name, args, agent_num)
         writer = SummaryWriter(log_dir="logs/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, int(time.time())))
         writer.add_text("HyperParameters", 
                         "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])))
@@ -146,9 +147,9 @@ def main():
                 args=args
             )
         if args.train:
-            path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
-            if not os.path.exists(path):
-                os.makedirs(path)
+            args.path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
+            if not os.path.exists(args.path):
+                os.makedirs(args.path)
         else:
             agents.load("save/{}_{}_{}_{}/agents_{}".format(args.sce_name, args.filename, mode, args.algo, mode))
         print("Random: {}   Learning rate: {}   Gamma: {}".format(args.randomize, args.lr, args.gamma))
@@ -194,9 +195,9 @@ def main():
                     edge_index=edge_index, buffer=buffer, device=device, args=args
                 )
             if args.train:
-                path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
-                if not os.path.exists(path):
-                    os.makedirs(path)
+                args.path = "save/{}_{}_{}_{}".format(args.sce_name, args.filename, mode, args.algo)
+                if not os.path.exists(args.path):
+                    os.makedirs(args.path)
             else:
                 agent.load("save/{}_{}_{}_{}/agent_{}_{}".format(args.sce_name, args.filename, mode, args.algo, i, mode))
             agents.append(agent)

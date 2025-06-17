@@ -1,19 +1,5 @@
 import torch
 
-def update_module_params(module: torch.nn.Module, new_params: dict):
-    def update(module: torch.nn.Module, name, new_param):
-        del module._parameters[name]
-        setattr(module, name, new_param)
-        module._parameters[name] = new_param
-
-    named_module_dict = dict(module.named_modules())
-    for name, new_param, in new_params.items():
-        if "." in name:
-            module_name, param_name = name.rsplit(".", 1)  # policy.0.bias -> module_name: policy.0, param_name: bias
-            update(named_module_dict[module_name], param_name, new_param)
-        else:
-            update(module, name, new_param)
-
 @torch.no_grad()
 def choose_cation(
         args, e, agent, 
@@ -23,7 +9,7 @@ def choose_cation(
     if best:
         caction, clog_prob = agent.select_best_caction(obs_n)
     else:
-        caction, clog_prob = agent.select_caction(obs_n)
+        caction, clog_prob = agent.select_caction(obs_n, valid)
     if not args.ctde:
         if valid:
             agent.validBuffer[task_id].cpush_last_state(state=obs_n, share_state=obs_n, action=caction, log_prob=clog_prob, env_id=e)
@@ -47,12 +33,12 @@ def choose_raction(
         if best:
             raction, rlog_prob = agent.select_best_raction(obs_feature_n, obs_n, obs_mask_n)
         else:
-            raction, rlog_prob = agent.select_raction(obs_feature_n, obs_n, obs_mask_n)
+            raction, rlog_prob = agent.select_raction(obs_feature_n, obs_n, obs_mask_n, valid)
     else:
         if best:
             raction, rlog_prob = agent.select_best_raction(obs_n, obs_mask_n) 
         else:
-            raction, rlog_prob = agent.select_raction(obs_n, obs_mask_n) 
+            raction, rlog_prob = agent.select_raction(obs_n, obs_mask_n, valid) 
     if not args.ctde:
         if valid:
             agent.validBuffer[task_id].rpush_last_state(

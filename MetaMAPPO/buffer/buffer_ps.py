@@ -72,7 +72,7 @@ class RolloutBufferPS(object):
         self.next_share_rstate[rptr][env_id][agent_id] = next_share_rstate
         self.next_obs_feature[rptr][env_id][agent_id] = next_obs_feature
         self.next_global_cs_feature[rptr][env_id][agent_id] = next_global_cs_feature
-        self.raction_mask[rptr][env_id][agent_id] = next_action_mask
+        self.next_raction_mask[rptr][env_id][agent_id] = next_action_mask
         self.rdone[rptr][env_id][agent_id] = done
 
         self.rptr[env_id][agent_id] = (rptr + 1) % self.rsteps

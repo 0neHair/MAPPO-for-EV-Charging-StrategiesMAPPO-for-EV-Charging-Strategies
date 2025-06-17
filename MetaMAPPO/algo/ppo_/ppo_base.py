@@ -282,17 +282,32 @@ class PPOAgent(object):
     def save(self, filename):
         if self.mode in ['GH', 'NGH', 'OC']:
             torch.save(self.cPolicy.state_dict(), "{}_c.pt".format(filename))
+            torch.save(self.cValue.state_dict(), "{}_cv.pt".format(filename))
+            torch.save(self.cpolicy_optim.state_dict(), "{}_c_optimizer.pt".format(filename))
+            torch.save(self.cvalue_optim.state_dict(), "{}_cv_optimizer.pt".format(filename))
         if self.mode in ['GH', 'NGH', 'OR']:
             torch.save(self.rPolicy.state_dict(), "{}_r.pt".format(filename))
-
+            torch.save(self.rValue.state_dict(), "{}_rv.pt".format(filename))
+            torch.save(self.rpolicy_optim.state_dict(), "{}_r_optimizer.pt".format(filename))
+            torch.save(self.rvalue_optim.state_dict(), "{}_rv_optimizer.pt".format(filename))
+            
     def load(self, filename):
         if self.mode in ['GH', 'NGH', 'OC']:
-            self.charge_network.load_state_dict(torch.load("{}_c.pt".format(filename)))
-            self.charge_optimizer.load_state_dict(torch.load("{}_c_optimizer.pt".format(filename)))
+            self.cPolicy.load_state_dict(torch.load("{}_c.pt".format(filename)))
+            self.cValue.load_state_dict(torch.load("{}_cv.pt".format(filename)))
+            self.cpolicy_optim.load_state_dict(torch.load("{}_c_optimizer.pt".format(filename)))
+            self.cvalue_optim.load_state_dict(torch.load("{}_cv_optimizer.pt".format(filename)))
         if self.mode in ['GH', 'NGH', 'OR']:
-            self.route_network.load_state_dict(torch.load("{}_r.pt".format(filename)))
-            self.route_optimizer.load_state_dict(torch.load("{}_r_optimizer.pt".format(filename)))
+            self.rPolicy.load_state_dict(torch.load("{}_r.pt".format(filename)))
+            self.rValue.load_state_dict(torch.load("{}_rv.pt".format(filename)))
+            self.rpolicy_optim.load_state_dict(torch.load("{}_r_optimizer.pt".format(filename)))
+            self.rvalue_optim.load_state_dict(torch.load("{}_rv_optimizer.pt".format(filename)))
 
+    def load_theta(self, filename):
+        if self.mode in ['GH', 'NGH', 'OC']:
+            self.cPolicy.load_state_dict(torch.load("{}_c.pt".format(filename)))
+        if self.mode in ['GH', 'NGH', 'OR']:
+            self.rPolicy.load_state_dict(torch.load("{}_r.pt".format(filename)))
 # def update_module_params(module: torch.nn.Module, new_params: dict):
 #     def update(module: torch.nn.Module, name, new_param):
 #         del module._parameters[name]

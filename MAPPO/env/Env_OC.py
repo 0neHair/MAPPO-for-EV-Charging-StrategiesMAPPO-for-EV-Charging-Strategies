@@ -1,3 +1,8 @@
+'''
+Author: CQZ
+Date: 2025-04-10 19:43:38
+Company: SEU
+'''
 import numpy as np
 import networkx as nx
 from env.Env_Base import Env_base
@@ -51,18 +56,7 @@ class Env_OC(Env_base):
         for agent in self.agent_to_remove: # 将不再更新的智能体去掉
             self.agents_active.remove(agent)
 
-    def weight_func(self, u, v, d):
-        node_u_wt = self.cs_waiting_time[u] / 100
-        edge_wt = d.get("length", 1)
-        return node_u_wt + edge_wt / 100
-    
-    def shortest_way(self):
-        node_path = nx.dijkstra_path(self.graph, 0, self.final_pos, weight=self.weight_func) # type: ignore
-        path_dic = {}
-        for p in range(len(node_path)-1): # type: ignore
-            path_dic[node_path[p]] = node_path[p+1] # type: ignore
-        return path_dic
-      
     def set_n_raction(self, agent, raction):
         agent.set_raction(agent.route[agent.target_pos], reset_record=True)
+        
         

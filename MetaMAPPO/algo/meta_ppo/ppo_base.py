@@ -75,13 +75,26 @@ class PPOAgent(object):
             ).to(self.device))
         self.rvalue_optim = torch.optim.Adam(self.rValue.parameters(), lr=self.meta_lr, eps=1e-5)
 
-        self.ctheta = dict(self.cPolicy.named_parameters())
-        self.rtheta = dict(self.rPolicy.named_parameters())
+        # self.cPolicy_valid = torch.compile(cActor(
+        #         state_dim, share_dim, caction_dim, self.caction_list, 
+        #         args.policy_arch,
+        #         args
+        #     ).to(self.device))
+        # self.rPolicy_valid = torch.compile(rActor(
+        #         state_dim, share_dim, 
+        #         raction_dim, self.raction_list, 
+        #         args.policy_arch,
+        #         args
+        #     ).to(self.device))
 
-    def select_caction(self, state):
+    def select_caction(self, state, valid: bool = False):
         state = torch.tensor(state, dtype=torch.float32).to(self.device)
         with torch.no_grad():
-            dist = self.cPolicy.get_distribution(state)
+            if valid:
+                dist = self.cPolicy.get_valid(state, self.new_ctheta)
+                # dist = self.cPolicy_valid.get_distribution(state)
+            else:
+                dist = self.cPolicy.get_distribution(state)
             action = dist.sample()
             log_prob = dist.log_prob(action)
         return action.cpu().numpy().flatten(), log_prob.cpu().numpy().flatten()
@@ -94,12 +107,16 @@ class PPOAgent(object):
             log_prob = dist.log_prob(action)
         return action.cpu().numpy().flatten(), log_prob.cpu().numpy().flatten()
     
-    def select_raction(self, state, mask):
+    def select_raction(self, state, mask, valid: bool = False):
         state = torch.unsqueeze(torch.tensor(state, dtype=torch.float32), 0).to(self.device)
         mask = torch.LongTensor(mask).to(self.device)
         
         with torch.no_grad():
-            dist = self.rPolicy.get_distribution(state=state, mask=mask)
+            if valid:
+                dist = self.rPolicy.get_valid(state, mask, self.new_rtheta)
+                # dist = self.rPolicy_valid.get_distribution(state, mask)
+            else:
+                dist = self.rPolicy.get_distribution(state=state, mask=mask)
             action = dist.sample()
             log_prob = dist.log_prob(action)
         return action.cpu().numpy().flatten(), log_prob.cpu().numpy().flatten()
@@ -202,17 +219,20 @@ class PPOAgent(object):
         caction = caction.view(-1, 1)
         clog_prob = clog_prob.view(-1, 1)
         norm_cadv = norm_cadv.view(-1, 1)
-        for _ in range(self.k_epoch):
-            for index in BatchSampler(SubsetRandomSampler(range(buffer_step)), self.mini_batch_size, True):
+        for index in BatchSampler(SubsetRandomSampler(range(buffer_step)), self.mini_batch_size, True):
+            if valid:
+                new_cdist = self.cPolicy.get_valid(state[index], self.new_ctheta)
+                # new_cdist = self.cPolicy_valid.get_distribution(state[index])
+            else:
                 new_cdist = self.cPolicy.get_distribution(state[index])
-                new_clog_prob = new_cdist.log_prob(caction[index].squeeze()).unsqueeze(1)
-                centropy = new_cdist.entropy()
-                cratios = torch.exp(new_clog_prob - clog_prob[index])
+            new_clog_prob = new_cdist.log_prob(caction[index].squeeze()).unsqueeze(1)
+            centropy = new_cdist.entropy()
+            cratios = torch.exp(new_clog_prob - clog_prob[index])
 
-                csurrogate1 = cratios * norm_cadv[index]
-                csurrogate2 = torch.clamp(cratios, 1 - self.eps_clip, 1 + self.eps_clip) * norm_cadv[index]
-                actor_closs = (-1 * torch.min(csurrogate1, csurrogate2)).mean()
-                entropy_closs = (self.entropy_coef * centropy).mean()
+            csurrogate1 = cratios * norm_cadv[index]
+            csurrogate2 = torch.clamp(cratios, 1 - self.eps_clip, 1 + self.eps_clip) * norm_cadv[index]
+            actor_closs = (-1 * torch.min(csurrogate1, csurrogate2)).mean()
+            entropy_closs = (self.entropy_coef * centropy).mean()
         # 路径部分
         rstate = rstate.view(-1, self.state_dim)
         share_rstate = share_rstate.view(-1, self.share_dim)
@@ -220,17 +240,20 @@ class PPOAgent(object):
         raction_mask = raction_mask.view(-1, self.raction_dim)
         rlog_prob = rlog_prob.view(-1, 1)
         norm_radv = norm_radv.view(-1, 1)
-        for _ in range(self.k_epoch):
-            for index in BatchSampler(SubsetRandomSampler(range(rbuffer_step)), self.mini_rbatch_size, True):
+        for index in BatchSampler(SubsetRandomSampler(range(rbuffer_step)), self.mini_rbatch_size, True):
+            if valid:
+                new_rdist = self.rPolicy.get_valid(state=rstate[index], mask=raction_mask[index], theta=self.new_rtheta)
+                # new_rdist = self.rPolicy_valid.get_distribution(state=rstate[index], mask=raction_mask[index])
+            else:
                 new_rdist = self.rPolicy.get_distribution(state=rstate[index], mask=raction_mask[index])
-                new_rlog_prob = new_rdist.log_prob(raction[index].squeeze()).unsqueeze(1)
-                rentropy = new_rdist.entropy()
-                rratios = torch.exp(new_rlog_prob - rlog_prob[index])
+            new_rlog_prob = new_rdist.log_prob(raction[index].squeeze()).unsqueeze(1)
+            rentropy = new_rdist.entropy()
+            rratios = torch.exp(new_rlog_prob - rlog_prob[index])
 
-                rsurrogate1 = rratios * norm_radv[index]
-                rsurrogate2 = torch.clamp(rratios, 1 - self.eps_clip, 1 + self.eps_clip) * norm_radv[index]
-                actor_rloss = (-1 * torch.min(rsurrogate1, rsurrogate2)).mean()
-                entropy_rloss = (self.entropy_coef * rentropy).mean()
+            rsurrogate1 = rratios * norm_radv[index]
+            rsurrogate2 = torch.clamp(rratios, 1 - self.eps_clip, 1 + self.eps_clip) * norm_radv[index]
+            actor_rloss = (-1 * torch.min(rsurrogate1, rsurrogate2)).mean()
+            entropy_rloss = (self.entropy_coef * rentropy).mean()
 
         return actor_closs, entropy_closs, actor_rloss, entropy_rloss
     
@@ -240,12 +263,14 @@ class PPOAgent(object):
         closs = actor_closs - entropy_closs
         self.cadapt_optim.zero_grad()
         cparam_grads = torch.autograd.grad(closs, list(self.cPolicy.parameters()), create_graph=second_order)
-        self.cadapt_optim.step(cparam_grads)
+        self.new_ctheta = self.cadapt_optim.step(cparam_grads)
+        # update_module_params(self.cPolicy_valid, self.new_ctheta) #* 参数同步
 
         rloss = actor_rloss - entropy_rloss
         self.radapt_optim.zero_grad()
         rparam_grads = torch.autograd.grad(rloss, list(self.rPolicy.parameters()), create_graph=second_order)
-        self.radapt_optim.step(rparam_grads)
+        self.new_rtheta = self.radapt_optim.step(rparam_grads)
+        # update_module_params(self.rPolicy_valid, self.new_rtheta) #* 参数同步
 
         return actor_closs.item(), entropy_closs.item(), actor_rloss.item(), entropy_rloss.item()
 
@@ -259,53 +284,42 @@ class PPOAgent(object):
             p['lr'] = lr
         return lr
 
-    def save_theta(self):
-        self.ctheta = {name: param.clone().detach().requires_grad_(True) for name, param in self.cPolicy.named_parameters()}
-        self.rtheta = {name: param.clone().detach().requires_grad_(True) for name, param in self.rPolicy.named_parameters()}
+    # def save_theta(self):
+    #     self.ctheta = {name: param.clone().detach().requires_grad_(True) for name, param in self.cPolicy.named_parameters()}
+    #     self.rtheta = {name: param.clone().detach().requires_grad_(True) for name, param in self.rPolicy.named_parameters()}
 
-        # self.ctheta = [param.clone().detach() for param in self.cPolicy.parameters()]
-        # self.rtheta = [param.clone().detach() for param in self.rPolicy.parameters()]
-        # self.ctheta = copy.deepcopy(dict(self.cPolicy.named_parameters()))
-        # self.rtheta = copy.deepcopy(dict(self.rPolicy.named_parameters()))
+    #     # self.ctheta = [param.clone().detach() for param in self.cPolicy.parameters()]
+    #     # self.rtheta = [param.clone().detach() for param in self.rPolicy.parameters()]
+    #     # self.ctheta = copy.deepcopy(dict(self.cPolicy.named_parameters()))
+    #     # self.rtheta = copy.deepcopy(dict(self.rPolicy.named_parameters()))
 
-    def restore_theta(self, second_order=False):
-        update_module_params(self.cPolicy, self.ctheta, second_order) #* 参数同步
-        update_module_params(self.rPolicy, self.rtheta, second_order) #* 参数同步
+    # def restore_theta(self, second_order=False):
+    #     update_module_params(self.cPolicy, self.ctheta, second_order) #* 参数同步
+    #     update_module_params(self.rPolicy, self.rtheta, second_order) #* 参数同步
 
     def save(self, filename):
         torch.save(self.cPolicy.state_dict(), "{}_c.pt".format(filename))
         torch.save(self.rPolicy.state_dict(), "{}_r.pt".format(filename))
-
+        torch.save(self.cValue.state_dict(), "{}_cv.pt".format(filename))
+        torch.save(self.rValue.state_dict(), "{}_rv.pt".format(filename))
+        
+        torch.save(self.cpolicy_optim.state_dict(), "{}_c_optimizer.pt".format(filename))
+        torch.save(self.rpolicy_optim.state_dict(), "{}_r_optimizer.pt".format(filename))
+        
+        torch.save(self.cvalue_optim.state_dict(), "{}_cv_optimizer.pt".format(filename))
+        torch.save(self.rvalue_optim.state_dict(), "{}_rv_optimizer.pt".format(filename))
+        
     def load(self, filename):
-        pass
-            # self.charge_network.load_state_dict(torch.load("{}_c.pt".format(filename)))
-            # self.charge_optimizer.load_state_dict(torch.load("{}_c_optimizer.pt".format(filename)))
-            # self.route_network.load_state_dict(torch.load("{}_r.pt".format(filename)))
-            # self.route_optimizer.load_state_dict(torch.load("{}_r_optimizer.pt".format(filename)))
+        self.cPolicy.load_state_dict(torch.load("{}_c.pt".format(filename)))
+        self.rPolicy.load_state_dict(torch.load("{}_r.pt".format(filename)))
+        self.cValue.load_state_dict(torch.load("{}_cv.pt".format(filename)))
+        self.rValue.load_state_dict(torch.load("{}_rv.pt".format(filename)))
+        
+        self.cpolicy_optim.load_state_dict(torch.load("{}_c_optimizer.pt".format(filename)))
+        self.rpolicy_optim.load_state_dict(torch.load("{}_r_optimizer.pt".format(filename)))
+        self.cvalue_optim.load_state_dict(torch.load("{}_cv_optimizer.pt".format(filename)))
+        self.rvalue_optim.load_state_dict(torch.load("{}_rv_optimizer.pt".format(filename)))
 
-# def update_module_params(module: torch.nn.Module, new_params: dict):
-#     def update(module: torch.nn.Module, name, new_param):
-#         del module._parameters[name]
-#         setattr(module, name, new_param)
-#         module._parameters[name] = new_param
-
-#     named_module_dict = dict(module.named_modules())
-#     for name, new_param, in new_params.items():
-#         if "." in name:
-#             module_name, param_name = name.rsplit(".", 1)  # policy.0.bias -> module_name: policy.0, param_name: bias
-#             update(named_module_dict[module_name], param_name, new_param)
-#         else:
-#             update(module, name, new_param)
-
-def update_module_params(module: torch.nn.Module, new_params: dict, second_order=False):
-    if second_order:
-        for name, param in module.named_parameters():
-            param.data.copy_(new_params[name].data)
-    else:
-        with torch.no_grad():
-            for name, param in module.named_parameters():
-                param.copy_(new_params[name])
-        # for name, param in module.named_parameters():
-        #     param.data.copy_(new_params[name].data)
-        # for param, new_param in zip(module.parameters(), new_params):
-        #     param.data.copy_(new_param.data)
+    def load_theta(self, filename):
+        self.cPolicy.load_state_dict(torch.load("{}_c.pt".format(filename)))
+        self.rPolicy.load_state_dict(torch.load("{}_r.pt".format(filename)))

@@ -37,9 +37,13 @@ class Meta_Trainer:
         self.device = torch.device(device)
         self.iter = 0
 
+        self.log_interval = 10
+        self.save_freq = args.save_freq
+        
     def adapt_individual(self, task_id):
-        for i, agent in enumerate(self.agents):
-            agent.adapt_policy(task_id, second_order=False)
+        for _ in range(self.adapt_num):
+            for i, agent in enumerate(self.agents):
+                agent.adapt_policy(task_id, second_order=False)
 
     def train_value_fuction(self, epoch, task_id, valid: bool = False):
         total_critic_closs = 0
@@ -60,25 +64,25 @@ class Meta_Trainer:
         start_time = time.time()
         for epoch in range(1, epochs+1):
             
-            for agent in self.agents:
-                agent.save_theta()
+            # for agent in self.agents:
+            #     agent.save_theta()
                 
             for  t, task in enumerate(self.tasks):
-                t1 = time.time()
+                # t1 = time.time()
                 self.sample(epoch=epoch, task_id=t, valid=False) #* 传统强化学习跑一遍，取样轨迹
                 # 训练value和actor
                 self.train_value_fuction(epoch=epoch, task_id=t, valid=False)
                 self.adapt_individual(task_id=t)
-                print('T1: ', time.time()-t1)
+                # print('T1: ', time.time()-t1)
 
-                t2 = time.time()
+                # t2 = time.time()
                 self.sample(epoch=epoch, task_id=t, valid=True) #* 新更新后的策略参数，取一串轨迹用于验证
                 self.train_value_fuction(epoch=epoch, task_id=t, valid=True) #* 计算adv
-                for agent in self.agents:
-                    agent.restore_theta()
-                print('T2: ', time.time()-t2)
+                # for agent in self.agents:
+                #     agent.restore_theta()
+                # print('T2: ', time.time()-t2)
 
-            t3 = time.time()
+            # t3 = time.time()
             total_cactor_loss, total_centropy, total_ractor_loss, total_rentropy = 0, 0, 0, 0
             for i, agent in enumerate(self.agents):
                 cactor_loss, centropy, ractor_loss, rentropy = self.step(agent_id=i, epoch=epoch)
@@ -86,18 +90,18 @@ class Meta_Trainer:
                 total_centropy += centropy
                 total_ractor_loss += ractor_loss
                 total_rentropy += rentropy
-                if epoch % 50 == 0:
-                    agent.save("save/{}_{}_{}_{}/agent_{}_{}_{}".format(self.args.sce_name, self.args.filename, self.mode, self.args.meta_algo, i, 'meta', self.mode))
+                if epoch % self.save_freq == 0:
+                    agent.save(self.args.path + "/agent_{}_{}_{}".format(i, 'meta', self.mode))
 
             self.writer.add_scalar("Global_loss/actor_closs", total_cactor_loss, epoch)
             self.writer.add_scalar("Global_loss/entropy_closs", total_centropy, epoch)
             self.writer.add_scalar("Global_loss/actor_rloss", total_ractor_loss, epoch)
             self.writer.add_scalar("Global_loss/entropy_rloss", total_rentropy, epoch)
-            print('T3: ', time.time()-t3)
+            # print('T3: ', time.time()-t3)
 
             self.writer.add_scalar("Global/time_step", (self.iter + 1) / (time.time() - start_time), epoch)
             self.iter += 1
-            if epoch % 50 == 0:
+            if epoch % self.log_interval == 0:
                 print(
                         'Episode {} \t Total reward: {:.3f} \t Average reward: {:.3f} \t Total best reward: {:.3f} \t Average best reward: {:.3f}'.format(
                                 epoch, self.global_total_reward, self.global_total_reward/self.agent_num, self.total_best_reward, self.total_best_reward/self.agent_num
@@ -106,16 +110,17 @@ class Meta_Trainer:
                 
     def meta_loss(self, agent_id, second_order: bool):
         closs, centropy, rloss, rentropy = [], [], [], []
-        self.agents[agent_id].save_theta()
+        # self.agents[agent_id].save_theta()
         for  t, task in enumerate(self.tasks):
-            self.agents[agent_id].adapt_policy(t, second_order=second_order)
+            for _ in range(self.adapt_num):
+                self.agents[agent_id].adapt_policy(t, second_order=second_order)
             ctask_loss, ctask_entropy, rtask_loss, rtask_entropy = self.agents[agent_id].surrogate_loss(t, valid=True) #* 验证轨迹算loss
 
             closs.append(ctask_loss)
             centropy.append(ctask_entropy)
             rloss.append(rtask_loss)
             rentropy.append(rtask_entropy)
-            self.agents[agent_id].restore_theta(second_order=second_order)
+            # self.agents[agent_id].restore_theta(second_order=second_order)
 
         return torch.stack(closs), torch.stack(centropy), torch.stack(rloss), torch.stack(rentropy)
 

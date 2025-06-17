@@ -59,11 +59,11 @@ class Scenario(): # Sioux-Falls transportation system
         total_vehicle_num = 30
         self.active_time_list = np.sort(
                 np.round(
-                        np.random.uniform(0, 0.5, (total_vehicle_num)) * 100
+                        np.random.uniform(0, 1, (total_vehicle_num)) * 100
                     )
             )
-        self.SOC_init_list = np.round(np.random.uniform(0.5, 0.7, (total_vehicle_num)), 2)
-        self.SOC_exp_list = np.round(np.random.uniform(0.3, 0.5, (total_vehicle_num)), 2)
+        self.SOC_init_list = np.round(np.random.uniform(0.75, 0.95, (total_vehicle_num)), 2)
+        self.SOC_exp_list = np.round(np.random.uniform(0.2, 0.5, (total_vehicle_num)), 2)
         for i in range(0, len(self.active_time_list)):
             # SOC_init = 0.8
             # SOC_exp = 0.4
@@ -83,5 +83,4 @@ class Scenario(): # Sioux-Falls transportation system
                 consume=0.15, speed=100, E_max=60
                 )
             self.agents.append(agent)
-
         

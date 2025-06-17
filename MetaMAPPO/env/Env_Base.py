@@ -210,7 +210,7 @@ class Env_base(gym.Env):
             self.obs_n[i][-self.agent_num:] = self.one_hot_id[agent.id] 
         else:
             self.obs_n[i][-self.num_cs:] = self.onehot_pos_
-        self.obs_mask_n[i] = agent.get_choice_set_mask()
+        self.obs_mask_n[i][:] = agent.get_choice_set_mask()
 
     def get_share_obs(self):
         if self.ps:
